@@ -29,4 +29,20 @@ export const users: User[] = [
     initials: 'JS',
     memberSince: '2025-05-20',
   },
+  {
+    id: 'user-chloe',
+    name: 'Chloe Kim',
+    email: 'chloe.kim@example.com',
+    initials: 'CK',
+    memberSince: '2025-04-10',
+  },
+  {
+    id: 'user-mike',
+    name: 'Mike Brown',
+    email: 'mike.brown@example.com',
+    initials: 'MB',
+    memberSince: '2025-03-05',
+  },
 ];
+
+    
