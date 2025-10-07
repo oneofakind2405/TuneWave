@@ -158,7 +158,7 @@ export function EditEventForm({
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select a category" />
-                            </Trigger>
+                            </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             <SelectItem value="Rock">Rock</SelectItem>

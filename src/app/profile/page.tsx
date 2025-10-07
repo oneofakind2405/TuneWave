@@ -16,7 +16,7 @@ import { CreateEventForm } from '@/components/create-event-form';
 import { useAppContext } from '@/context/app-provider';
 import { useRouter } from 'next/navigation';
 import { useFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, query, where, doc, deleteDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, deleteDoc, updateDoc, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 

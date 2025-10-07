@@ -16,7 +16,8 @@ import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
 import { useFirebase } from '@/firebase';
-import { doc, deleteDoc, updateDoc, setDoc, getDoc, serverTimestamp, runTransaction, increment } from 'firebase/firestore';
+import { doc, deleteDoc, updateDoc, setDoc, getDoc, serverTimestamp, runTransaction, increment, collection } from 'firebase/firestore';
+import { Card } from './ui/card';
 
 const categories = [
   { name: 'All', icon: Music },
