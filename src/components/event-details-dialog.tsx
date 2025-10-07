@@ -8,10 +8,11 @@ import {
 } from '@/components/ui/dialog';
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin } from 'lucide-react';
+import { Calendar, Clock, MapPin, Pencil, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Button } from './ui/button';
+import { Separator } from './ui/separator';
 
 interface EventDetailsDialogProps {
   event: Event | null;
@@ -59,10 +60,19 @@ export function EventDetailsDialog({ event, open, onOpenChange }: EventDetailsDi
               <MapPin className="h-4 w-4 flex-shrink-0" />
               <span>{event.location}</span>
             </div>
-            <div className="flex-grow overflow-y-auto pr-2" style={{maxHeight: 'calc(100vh - 300px)'}}>
+            <div className="flex-grow overflow-y-auto pr-2" style={{maxHeight: 'calc(100vh - 350px)'}}>
                 <p className="text-muted-foreground">{event.description}</p>
             </div>
-            <Button onClick={() => onOpenChange(false)} className="mt-6 w-full bg-primary hover:bg-primary/90 text-primary-foreground">Close</Button>
+            <Separator className="my-4" />
+            <div className="flex flex-col sm:flex-row gap-2">
+                <Button onClick={() => {}} className="w-full">
+                    <Pencil className="mr-2 h-4 w-4" /> Edit Event
+                </Button>
+                <Button onClick={() => {}} variant="destructive" className="w-full">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete Event
+                </Button>
+                <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>
+            </div>
           </div>
         </div>
       </DialogContent>
