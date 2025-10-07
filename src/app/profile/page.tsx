@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { events as initialEvents, Event } from '@/lib/events-data';
+import { Event } from '@/lib/events-data';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, Clock, Edit, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
 import Image from 'next/image';
@@ -15,6 +15,7 @@ import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
 import { useAppContext } from '@/context/app-provider';
 import { useRouter } from 'next/navigation';
+import { getAttendeesCount } from '@/lib/attendees-data';
 
 function ProfileEventCard({
   event,
@@ -27,6 +28,7 @@ function ProfileEventCard({
   onEdit: () => void;
   onDelete: () => void;
 }) {
+  const attendeeCount = getAttendeesCount(event.id);
   return (
     <Card className="bg-secondary border-none">
       <CardContent className="flex flex-col md:flex-row items-start gap-6 p-4">
@@ -72,7 +74,9 @@ function ProfileEventCard({
           <div className="flex justify-between items-center">
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Users className="h-4 w-4" />
-              <span>Attendees: Coming soon</span>
+              <span>
+                {attendeeCount} {attendeeCount === 1 ? 'Attendee' : 'Attendees'}
+              </span>
             </div>
             {isCreator && (
               <div className="flex gap-2">
