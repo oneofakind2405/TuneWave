@@ -17,7 +17,7 @@ export default function Home() {
       <Header user={user} onSetUser={setUser} />
       <main className="flex-1">
         <HeroSection />
-        <EventsSection user={user} />
+        <EventsSection user={user} onSetUser={setUser} />
       </main>
       <Footer />
     </div>

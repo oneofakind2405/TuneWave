@@ -8,11 +8,12 @@ import {
 } from '@/components/ui/dialog';
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Pencil, Trash2, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, Pencil, Trash2, User, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
+import { User as UserType } from '@/lib/users';
 
 interface EventDetailsDialogProps {
   event: Event | null;
@@ -21,9 +22,11 @@ interface EventDetailsDialogProps {
   onEdit: () => void;
   onDelete: () => void;
   isCreator: boolean;
+  user: UserType | null;
+  onSignInClick: () => void;
 }
 
-export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator }: EventDetailsDialogProps) {
+export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator, user, onSignInClick }: EventDetailsDialogProps) {
   if (!event) {
     return null;
   }
@@ -78,19 +81,27 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
             <Separator className="my-4" />
 
             <div className="flex flex-col sm:flex-row gap-2">
-                {isCreator ? (
-                  <>
-                    <Button onClick={onEdit} className="w-full">
-                        <Pencil className="mr-2 h-4 w-4" /> Edit
-                    </Button>
-                    <Button onClick={onDelete} variant="destructive" className="w-full">
-                        <Trash2 className="mr-2 h-4 w-4" /> Delete
-                    </Button>
-                  </>
-                ) : (
-                   <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>
-                )}
-                 {isCreator && <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>}
+              {!user ? (
+                <Button onClick={onSignInClick} className="w-full">
+                  <UserPlus className="mr-2 h-4 w-4" /> Sign in to Attend
+                </Button>
+              ) : isCreator ? (
+                <>
+                  <Button onClick={onEdit} className="w-full">
+                    <Pencil className="mr-2 h-4 w-4" /> Edit
+                  </Button>
+                  <Button onClick={onDelete} variant="destructive" className="w-full">
+                    <Trash2 className="mr-2 h-4 w-4" /> Delete
+                  </Button>
+                </>
+              ) : (
+                <Button variant="default" className="w-full" disabled>
+                  Attending
+                </Button>
+              )}
+              <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">
+                Close
+              </Button>
             </div>
           </div>
         </div>
