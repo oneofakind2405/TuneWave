@@ -59,14 +59,16 @@ function ProfileEventCard({ event }: { event: typeof events[0] }) {
 
 export default function ProfilePage() {
   const user = {
+    id: 'user-liam',
     name: 'Liam Ottley',
     email: 'liamottley@gmail.com',
     memberSince: '2025-07-01',
     initials: 'LO',
   };
 
-  const createdEvents = events.slice(0, 3);
+  // We will add attending events later
   const attendingEvents = events.slice(3, 5);
+  const createdEvents = events.filter(event => event.creatorId === user.id);
 
   return (
     <div className="flex min-h-screen flex-col">

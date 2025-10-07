@@ -58,9 +58,13 @@ export function EventsSection() {
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEvent: Omit<Event, 'id'>) => {
-    const newEventWithId = { ...newEvent, id: Date.now().toString() };
-    setEvents([newEventWithId, ...events]);
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
+    const newEvent: Event = {
+      ...newEventData,
+      id: Date.now().toString(),
+      creatorId: 'user-liam', // Hardcoded for now
+    };
+    setEvents([newEvent, ...events]);
     setIsCreating(false);
   };
 
