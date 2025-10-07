@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from './ui/badge';
 import { Calendar, Clock, MapPin } from 'lucide-react';
 import { format } from 'date-fns';
+import Image from 'next/image';
 
 interface EventCardProps {
   event: Event;
@@ -15,6 +16,16 @@ export function EventCard({ event, onClick }: EventCardProps) {
       onClick={onClick}
       className="flex h-full cursor-pointer flex-col overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-xl"
     >
+      <div className="relative aspect-[4/3] w-full">
+        <Image
+          src={event.imageUrl}
+          alt={event.title}
+          fill
+          className="object-cover"
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          data-ai-hint={event.imageHint}
+        />
+      </div>
       <CardHeader>
         <CardTitle>{event.title}</CardTitle>
         <CardDescription className="line-clamp-2">{event.description}</CardDescription>

@@ -6,6 +6,8 @@ export type Event = {
   date: string;
   time: string;
   category: 'Rock' | 'Pop' | 'Electronic';
+  imageUrl: string;
+  imageHint: string;
 };
 
 export const events: Event[] = [
@@ -17,6 +19,8 @@ export const events: Event[] = [
     date: '2024-09-15',
     time: '8:00 PM',
     category: 'Rock',
+    imageUrl: 'https://picsum.photos/seed/indie-rock/400/300',
+    imageHint: 'rock band',
   },
   {
     id: '2',
@@ -26,6 +30,8 @@ export const events: Event[] = [
     date: '2024-09-20',
     time: '7:30 PM',
     category: 'Pop',
+    imageUrl: 'https://picsum.photos/seed/pop-live/400/300',
+    imageHint: 'pop concert',
   },
   {
     id: '3',
@@ -35,6 +41,8 @@ export const events: Event[] = [
     date: '2024-09-28',
     time: '10:00 PM',
     category: 'Electronic',
+    imageUrl: 'https://picsum.photos/seed/electronic-dj/400/300',
+    imageHint: 'dj booth',
   },
   {
     id: '4',
@@ -44,6 +52,8 @@ export const events: Event[] = [
     date: '2024-10-05',
     time: '7:00 PM',
     category: 'Pop',
+    imageUrl: 'https://picsum.photos/seed/acoustic-guitar/400/300',
+    imageHint: 'acoustic guitar',
   },
   {
     id: '5',
@@ -53,6 +63,8 @@ export const events: Event[] = [
     date: '2024-10-12',
     time: '6:00 PM',
     category: 'Rock',
+    imageUrl: 'https://picsum.photos/seed/metal-fest/400/300',
+    imageHint: 'metal band',
   },
   {
     id: '6',
@@ -62,6 +74,8 @@ export const events: Event[] = [
     date: '2024-10-18',
     time: '6:30 PM',
     category: 'Electronic',
+    imageUrl: 'https://picsum.photos/seed/synthwave-sunset/400/300',
+    imageHint: 'synthwave aesthetic',
   },
     {
     id: '7',
@@ -71,6 +85,8 @@ export const events: Event[] = [
     date: '2024-11-02',
     time: '9:00 PM',
     category: 'Rock',
+    imageUrl: 'https://picsum.photos/seed/garage-rock/400/300',
+    imageHint: 'rock band garage',
   },
   {
     id: '8',
@@ -80,5 +96,7 @@ export const events: Event[] = [
     date: '2024-11-09',
     time: '11:00 PM',
     category: 'Electronic',
+    imageUrl: 'https://picsum.photos/seed/hyperpop-rave/400/300',
+    imageHint: 'rave party',
   },
 ];
