@@ -49,7 +49,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
               src={event.imageUrl}
               alt={event.title}
               fill
-              className="object-contain"
+              className="object-cover"
               sizes="(max-width: 768px) 100vw, 50vw"
               data-ai-hint={event.imageHint}
             />
