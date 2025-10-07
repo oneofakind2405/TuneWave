@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -45,41 +45,40 @@ const formSchema = z.object({
 
 type EventFormValues = z.infer<typeof formSchema>;
 
-interface EditEventFormProps {
-  event: Event | null;
+interface CreateEventFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (event: Event) => void;
+  onCreate: (event: Omit<Event, 'id'>) => void;
 }
 
-export function EditEventForm({
-  event,
+export function CreateEventForm({
   open,
   onOpenChange,
-  onSave,
-}: EditEventFormProps) {
+  onCreate,
+}: CreateEventFormProps) {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<EventFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: event || {},
+    defaultValues: {
+        title: '',
+        description: '',
+        location: '',
+        date: '',
+        time: '',
+        category: 'Rock',
+        imageUrl: '',
+        imageHint: ''
+    },
   });
 
-  useEffect(() => {
-    if (event) {
-      form.reset(event);
-      setImagePreview(event.imageUrl);
-    }
-  }, [event, form]);
-
   const onSubmit = (data: EventFormValues) => {
-    if (event) {
-      onSave({ ...event, ...data });
-    }
+    onCreate(data);
     onOpenChange(false);
+    form.reset();
     setImagePreview(null);
   };
-  
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -97,12 +96,13 @@ export function EditEventForm({
     <Dialog open={open} onOpenChange={(isOpen) => {
       onOpenChange(isOpen);
       if (!isOpen) {
+        form.reset();
         setImagePreview(null);
       }
     }}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Edit Event</DialogTitle>
+          <DialogTitle>Create Event</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -197,7 +197,7 @@ export function EditEventForm({
                 )}
               />
             </div>
-            <FormField
+             <FormField
               control={form.control}
               name="imageUrl"
               render={({ field }) => (
@@ -215,27 +215,27 @@ export function EditEventForm({
                 </FormItem>
               )}
             />
-            {imagePreview && (
+             {imagePreview && (
               <div className="relative w-full h-64 rounded-md overflow-hidden">
                 <Image src={imagePreview} alt="Image Preview" fill style={{objectFit: "cover"}} />
               </div>
             )}
-            <FormField
-              control={form.control}
-              name="imageHint"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Image Hint</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <FormField
+                control={form.control}
+                name="imageHint"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Image Hint</FormLabel>
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-              <Button type="submit">Save Changes</Button>
+              <Button type="submit">Create Event</Button>
             </DialogFooter>
           </form>
         </Form>

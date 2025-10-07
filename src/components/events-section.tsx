@@ -4,11 +4,12 @@ import { useState, useMemo, useCallback } from 'react';
 import { events as initialEvents, type Event } from '@/lib/events-data';
 import { EventCard } from './event-card';
 import { Button } from './ui/button';
-import { Disc3, Mic, Music } from 'lucide-react';
+import { Disc3, Mic, Music, PlusCircle } from 'lucide-react';
 import { GuitarIcon } from './icons/guitar';
 import { EventDetailsDialog } from './event-details-dialog';
 import { EditEventForm } from './edit-event-form';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
+import { CreateEventForm } from './create-event-form';
 
 const categories = [
   { name: 'All', icon: Music },
@@ -26,6 +27,7 @@ export function EventsSection() {
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const handleSelectEvent = (event: Event) => {
     setSelectedEvent(event);
@@ -56,6 +58,12 @@ export function EventsSection() {
     setSelectedEvent(null);
   };
 
+  const handleCreate = (newEvent: Omit<Event, 'id'>) => {
+    const newEventWithId = { ...newEvent, id: Date.now().toString() };
+    setEvents([newEventWithId, ...events]);
+    setIsCreating(false);
+  };
+
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'All') {
       return events;
@@ -67,6 +75,7 @@ export function EventsSection() {
     setIsDetailsOpen(false);
     setIsEditing(false);
     setIsDeleting(false);
+    setIsCreating(false);
     setSelectedEvent(null);
   }, []);
 
@@ -92,6 +101,13 @@ export function EventsSection() {
                 {name}
               </Button>
             ))}
+             <Button
+                onClick={() => setIsCreating(true)}
+                className="ml-4"
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create Event
+              </Button>
           </div>
 
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -126,6 +142,12 @@ export function EventsSection() {
         open={isEditing}
         onOpenChange={(open) => { if (!open) closeAllDialogs() }}
         onSave={handleSave}
+      />
+
+      <CreateEventForm
+        open={isCreating}
+        onOpenChange={(open) => { if (!open) closeAllDialogs() }}
+        onCreate={handleCreate}
       />
       
       <DeleteConfirmationDialog
