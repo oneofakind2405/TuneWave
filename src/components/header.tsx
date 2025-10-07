@@ -19,9 +19,10 @@ import { useRouter } from 'next/navigation';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/events-data';
-import { users } from '@/lib/users';
 import { useAppContext } from '@/context/app-provider';
-
+import { useFirebase } from '@/firebase';
+import { signOut } from 'firebase/auth';
+import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
 export function Header() {
   const { user, setUser } = useAppContext();
@@ -30,16 +31,18 @@ export function Header() {
   const [isCreating, setIsCreating] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const { auth, firestore } = useFirebase();
 
   const handleSignInSuccess = () => {
-    setUser(users[0]);
     setIsSignInOpen(false);
     router.push('/profile');
   };
 
-  const handleSignOut = () => {
+  const handleSignOut = async () => {
+    await signOut(auth);
     setUser(null);
     router.push('/');
+    toast({ title: 'Signed Out', description: 'You have been successfully signed out.' });
   };
 
   const handleSignUpSuccess = () => {
@@ -47,12 +50,23 @@ export function Header() {
     setIsSignInOpen(true);
   };
   
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
-    console.log("New event created:", newEventData);
-    toast({ title: "Event Created", description: "Your new event has been successfully created." });
-    setIsCreating(false);
-  };
+  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+    if (!user || !firestore) return;
 
+    try {
+      await addDoc(collection(firestore, 'events'), {
+        ...newEventData,
+        creatorId: user.uid,
+        views: 0,
+        createdAt: serverTimestamp(),
+      });
+      toast({ title: "Event Created", description: "Your new event has been successfully created." });
+      setIsCreating(false);
+    } catch (error: any) {
+      console.error("Error creating event:", error);
+      toast({ variant: 'destructive', title: "Creation Failed", description: error.message });
+    }
+  };
 
   return (
     <>
@@ -89,7 +103,7 @@ export function Header() {
                   >
                     <Avatar className="h-8 w-8 text-lg">
                       <AvatarFallback className="bg-primary text-primary-foreground">
-                        {user.initials}
+                        {user.displayName?.split(' ').map(n => n[0]).join('')}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
@@ -98,7 +112,7 @@ export function Header() {
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none">
-                        {user.name}
+                        {user.displayName}
                       </p>
                       <p className="text-xs leading-none text-muted-foreground">
                         {user.email}

@@ -12,11 +12,11 @@ import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
 import { SignInForm } from './sign-in-form';
-import { users } from '@/lib/users';
 import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
-
+import { useFirebase } from '@/firebase';
+import { doc, deleteDoc, updateDoc, setDoc, getDoc, serverTimestamp, runTransaction, increment } from 'firebase/firestore';
 
 const categories = [
   { name: 'All', icon: Music },
@@ -29,14 +29,9 @@ type Category = (typeof categories)[number]['name'];
 
 
 export function EventsSection() {
-  const { 
-    user, 
-    setUser, 
-    events, 
-    setEvents, 
-    attendingEventIds, 
-    setAttendingEventIds 
-  } = useAppContext();
+  const { user, events, attendingEventIds, setAttendingEventIds, isLoading } = useAppContext();
+  const { firestore } = useFirebase();
+
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -49,14 +44,21 @@ export function EventsSection() {
   const router = useRouter();
 
 
-  const handleSelectEvent = (event: Event) => {
+  const handleSelectEvent = async (event: Event) => {
     setSelectedEvent(event);
     setIsDetailsOpen(true);
+    // Increment view count
+    if (firestore && event.id) {
+      const eventRef = doc(firestore, 'events', event.id);
+      await updateDoc(eventRef, {
+        views: increment(1)
+      });
+    }
   };
   
   const handleEdit = () => {
     if (!selectedEvent) return;
-    if (!user || selectedEvent.creatorId !== user.id) {
+    if (!user || selectedEvent.creatorId !== user.uid) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only edit your own events." });
         return;
     }
@@ -66,7 +68,7 @@ export function EventsSection() {
 
   const handleDelete = () => {
     if (!selectedEvent) return;
-    if (!user || selectedEvent.creatorId !== user.id) {
+    if (!user || selectedEvent.creatorId !== user.uid) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only delete your own events." });
         return;
     }
@@ -74,39 +76,57 @@ export function EventsSection() {
     setIsDeleting(true);
   };
 
-  const confirmDelete = () => {
-    if (selectedEvent) {
-      setEvents(events.filter(e => e.id !== selectedEvent.id));
-      toast({ title: "Event Deleted", description: "The event has been successfully deleted." });
+  const confirmDelete = async () => {
+    if (selectedEvent && firestore) {
+      try {
+        await deleteDoc(doc(firestore, 'events', selectedEvent.id));
+        toast({ title: "Event Deleted", description: "The event has been successfully deleted." });
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: "Deletion Failed", description: error.message });
+      }
     }
     setIsDeleting(false);
     setSelectedEvent(null);
   };
 
-  const handleSave = (updatedEvent: Event) => {
-    setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
-    toast({ title: "Event Updated", description: "Your event has been successfully updated." });
+  const handleSave = async (updatedEvent: Event) => {
+    if (firestore) {
+      try {
+        const eventRef = doc(firestore, 'events', updatedEvent.id);
+        await updateDoc(eventRef, { ...updatedEvent });
+        toast({ title: "Event Updated", description: "Your event has been successfully updated." });
+      } catch (error: any) {
+        toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+      }
+    }
     setIsEditing(false);
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
-    if (!user) {
+  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+    if (!user || !firestore) {
       toast({ variant: 'destructive', title: "Not Signed In", description: "You must be signed in to create an event." });
       return;
     }
-    const newEvent: Event = {
-      ...newEventData,
-      id: Date.now().toString(),
-      creatorId: user.id,
-    };
-    setEvents([newEvent, ...events]);
-    toast({ title: "Event Created", description: "Your new event has been successfully created." });
-    setIsCreating(false);
+    try {
+      await runTransaction(firestore, async (transaction) => {
+        const newEventRef = doc(collection(firestore, 'events'));
+        transaction.set(newEventRef, {
+          ...newEventData,
+          id: newEventRef.id,
+          creatorId: user.uid,
+          views: 0,
+          createdAt: serverTimestamp(),
+        });
+      });
+      toast({ title: "Event Created", description: "Your new event has been successfully created." });
+      setIsCreating(false);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: "Creation Failed", description: error.message });
+    }
   };
 
   const handleSignInSuccess = () => {
-    setUser(users[0]);
     setIsSignInOpen(false);
     router.push('/profile');
   };
@@ -121,20 +141,41 @@ export function EventsSection() {
     setIsSignInOpen(true);
   };
 
-  const handleToggleAttend = () => {
-    if (!user || !selectedEvent) return;
+  const handleToggleAttend = async () => {
+    if (!user || !selectedEvent || !firestore) return;
 
-    setAttendingEventIds(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(selectedEvent.id)) {
-        newSet.delete(selectedEvent.id);
+    const attendingRef = doc(firestore, 'users', user.uid, 'attending', selectedEvent.id);
+    const attendeeRef = doc(firestore, 'events', selectedEvent.id, 'attendees', user.uid);
+
+    try {
+      if (attendingEventIds.has(selectedEvent.id)) {
+        // Leave event
+        await runTransaction(firestore, async (transaction) => {
+          transaction.delete(attendingRef);
+          transaction.delete(attendeeRef);
+        });
+        setAttendingEventIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(selectedEvent.id);
+          return newSet;
+        });
         toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
       } else {
-        newSet.add(selectedEvent.id);
+        // Join event
+        await runTransaction(firestore, async (transaction) => {
+          transaction.set(attendingRef, { eventId: selectedEvent.id, joinedAt: serverTimestamp() });
+          transaction.set(attendeeRef, { userId: user.uid, joinedAt: serverTimestamp() });
+        });
+        setAttendingEventIds(prev => {
+          const newSet = new Set(prev);
+          newSet.add(selectedEvent.id);
+          return newSet;
+        });
         toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
       }
-      return newSet;
-    });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+    }
   };
 
   const filteredEvents = useMemo(() => {
@@ -176,18 +217,26 @@ export function EventsSection() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {filteredEvents.map((event, index) => (
-              <div
-                key={event.id}
-                className="animate-in fade-in-0 zoom-in-95 duration-500"
-                style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
-              >
-                <EventCard event={event} onClick={() => handleSelectEvent(event)} />
-              </div>
-            ))}
-          </div>
-          {filteredEvents.length === 0 && (
+          {isLoading ? (
+             <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <Card key={i} className="h-[450px] animate-pulse bg-secondary"></Card>
+              ))}
+             </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {filteredEvents.map((event, index) => (
+                <div
+                  key={event.id}
+                  className="animate-in fade-in-0 zoom-in-95 duration-500"
+                  style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
+                >
+                  <EventCard event={event} onClick={() => handleSelectEvent(event)} />
+                </div>
+              ))}
+            </div>
+          )}
+          {!isLoading && filteredEvents.length === 0 && (
             <div className="mt-8 text-center text-muted-foreground">
               <p>No events found for this category. Check back soon!</p>
             </div>
@@ -201,7 +250,7 @@ export function EventsSection() {
         onOpenChange={(open) => { if (!open) closeAllDialogs() }}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        isCreator={!!user && selectedEvent?.creatorId === user.id}
+        isCreator={!!user && selectedEvent?.creatorId === user.uid}
         user={user}
         onSignInClick={openSignIn}
         isAttending={!!selectedEvent && attendingEventIds.has(selectedEvent.id)}

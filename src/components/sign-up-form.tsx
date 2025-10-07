@@ -21,6 +21,10 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useFirebase } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -38,6 +42,9 @@ interface SignUpFormProps {
 }
 
 export function SignUpForm({ open, onOpenChange, onSwitchToSignIn, onSignUpSuccess }: SignUpFormProps) {
+  const { auth, firestore } = useFirebase();
+  const { toast } = useToast();
+
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -47,10 +54,26 @@ export function SignUpForm({ open, onOpenChange, onSwitchToSignIn, onSignUpSucce
     },
   });
 
-  const onSubmit = (data: SignUpFormValues) => {
-    console.log('Sign Up data:', data);
-    // TODO: Implement actual sign-up logic
-    onSignUpSuccess();
+  const onSubmit = async (data: SignUpFormValues) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const user = userCredential.user;
+
+      const userDocRef = doc(firestore, 'users', user.uid);
+      await setDoc(userDocRef, {
+        id: user.uid,
+        name: data.name,
+        email: data.email,
+        initials: data.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+        memberSince: serverTimestamp(),
+      });
+
+      toast({ title: "Account Created", description: "You have successfully signed up." });
+      onSignUpSuccess();
+    } catch (error: any) {
+      console.error('Sign Up Error:', error);
+      toast({ variant: 'destructive', title: "Sign Up Failed", description: error.message });
+    }
   };
 
   return (

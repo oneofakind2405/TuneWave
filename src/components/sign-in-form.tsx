@@ -21,6 +21,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { useFirebase } from '@/firebase';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -36,6 +39,9 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) {
+  const { auth } = useFirebase();
+  const { toast } = useToast();
+
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -44,10 +50,15 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
     },
   });
 
-  const onSubmit = (data: SignInFormValues) => {
-    console.log('Sign In data:', data);
-    // TODO: Implement actual sign-in logic
-    onSignedIn();
+  const onSubmit = async (data: SignInFormValues) => {
+    try {
+      await signInWithEmailAndPassword(auth, data.email, data.password);
+      toast({ title: "Signed In", description: "Welcome back!" });
+      onSignedIn();
+    } catch (error: any) {
+      console.error("Sign In error:", error);
+      toast({ variant: 'destructive', title: "Sign In Failed", description: "Invalid email or password." });
+    }
   };
 
   return (

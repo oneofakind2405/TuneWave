@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/header';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -16,20 +15,24 @@ import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
 import { useAppContext } from '@/context/app-provider';
 import { useRouter } from 'next/navigation';
-import { getAttendeesCount } from '@/lib/attendees-data';
+import { useFirebase, useCollection, useDoc } from '@/firebase';
+import { collection, query, where, doc, deleteDoc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useToast } from '@/hooks/use-toast';
+
 
 function ProfileEventCard({
   event,
   isCreator,
   onEdit,
   onDelete,
+  attendeeCount,
 }: {
   event: Event;
   isCreator: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  attendeeCount: number;
 }) {
-  const attendeeCount = getAttendeesCount(event.id);
   return (
     <Card className="bg-secondary border-none">
       <CardContent className="flex flex-col md:flex-row items-start gap-6 p-4">
@@ -84,7 +87,7 @@ function ProfileEventCard({
                 <div className="flex items-center gap-2">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {event.views} {event.views === 1 ? 'View' : 'Views'}
+                    {event.views || 0} {event.views === 1 ? 'View' : 'Views'}
                   </span>
                 </div>
               )}
@@ -108,21 +111,54 @@ function ProfileEventCard({
 
 
 export default function ProfilePage() {
-  const { user, events, setEvents, attendingEventIds } = useAppContext();
+  const { user: authUser, isLoading: isAppLoading, attendingEventIds } = useAppContext();
+  const { firestore } = useFirebase();
+  const { toast } = useToast();
+  const router = useRouter();
+
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const router = useRouter();
+
+  // Fetch user profile from Firestore
+  const userDocRef = useMemo(() => authUser ? doc(firestore, 'users', authUser.uid) : null, [authUser, firestore]);
+  const { data: userProfile, isLoading: isUserLoading } = useDoc(userDocRef);
+
+  // Fetch events created by the user
+  const createdEventsQuery = useMemo(() => {
+    if (!firestore || !authUser) return null;
+    return query(collection(firestore, 'events'), where('creatorId', '==', authUser.uid));
+  }, [firestore, authUser]);
+  const { data: createdEvents, isLoading: isCreatedEventsLoading } = useCollection<Event>(createdEventsQuery);
+
+  // Fetch events the user is attending
+  const attendingEventsQuery = useMemo(() => {
+    if (!firestore || attendingEventIds.size === 0) return null;
+    return query(collection(firestore, 'events'), where('id', 'in', Array.from(attendingEventIds)));
+  }, [firestore, attendingEventIds]);
+  const { data: attendingEvents, isLoading: isAttendingEventsLoading } = useCollection<Event>(attendingEventsQuery);
+
+  // Fetch attendee counts for created events
+  const [attendeeCounts, setAttendeeCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    if (createdEvents && firestore) {
+      createdEvents.forEach(event => {
+        const attendeesCol = collection(firestore, 'events', event.id, 'attendees');
+        getDocs(attendeesCol).then(snapshot => {
+          setAttendeeCounts(prev => ({ ...prev, [event.id]: snapshot.size }));
+        });
+      });
+    }
+  }, [createdEvents, firestore]);
 
 
   useEffect(() => {
-    if (user === undefined) return; // Still loading
-    if (user === null) {
+    if (!isAppLoading && !authUser) {
       router.push('/');
     }
-  }, [user, router]);
-
+  }, [isAppLoading, authUser, router]);
 
   const handleEdit = (event: Event) => {
     setSelectedEvent(event);
@@ -134,44 +170,49 @@ export default function ProfilePage() {
     setIsDeleting(true);
   };
 
-  const confirmDelete = () => {
-    if (selectedEvent) {
-      setEvents(events.filter((e) => e.id !== selectedEvent.id));
+  const confirmDelete = async () => {
+    if (selectedEvent && firestore) {
+      await deleteDoc(doc(firestore, 'events', selectedEvent.id));
+      toast({ title: 'Event deleted' });
     }
     setIsDeleting(false);
     setSelectedEvent(null);
   };
 
-  const handleSave = (updatedEvent: Event) => {
-    setEvents(events.map((e) => (e.id === updatedEvent.id ? updatedEvent : e)));
+  const handleSave = async (updatedEvent: Event) => {
+    if (firestore && updatedEvent) {
+      const eventRef = doc(firestore, 'events', updatedEvent.id);
+      await updateDoc(eventRef, { ...updatedEvent });
+      toast({ title: 'Event updated' });
+    }
     setIsEditing(false);
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'views'>) => {
-    if (!user) return;
-    const newEvent: Event = {
+  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+    if (!authUser || !firestore) return;
+    const newEvent = {
       ...newEventData,
-      id: Date.now().toString(),
-      creatorId: user.id,
+      creatorId: authUser.uid,
       views: 0,
+      createdAt: serverTimestamp(),
     };
-    setEvents([newEvent, ...events]);
+    await addDoc(collection(firestore, 'events'), newEvent);
+    toast({ title: 'Event created' });
     setIsCreating(false);
   };
 
-  const attendingEvents = user ? events.filter(event => attendingEventIds.has(event.id)) : [];
-  const createdEvents = user ? events.filter((event) => event.creatorId === user.id) : [];
+  const isLoading = isAppLoading || isUserLoading || isCreatedEventsLoading || isAttendingEventsLoading;
 
-  if (!user) {
+  if (isLoading || !userProfile) {
     return (
-        <div className="flex min-h-screen flex-col">
-            <Header />
-            <div className="flex-1 flex items-center justify-center">
-                <p>Loading profile...</p>
-            </div>
+      <div className="flex min-h-screen flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center">
+          <p>Loading profile...</p>
         </div>
-    )
+      </div>
+    );
   }
 
   return (
@@ -183,15 +224,15 @@ export default function ProfilePage() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
               <Avatar className="h-24 w-24 text-4xl">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user.initials}
+                  {userProfile.initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-grow">
-                <h1 className="text-3xl font-bold">{user.name}</h1>
-                <p className="text-muted-foreground">{user.email}</p>
+                <h1 className="text-3xl font-bold">{userProfile.name}</h1>
+                <p className="text-muted-foreground">{userProfile.email}</p>
                 <p className="text-sm text-muted-foreground mt-1">
                   Member since{' '}
-                  {new Date(user.memberSince).toLocaleDateString('en-US', {
+                  {userProfile.memberSince.toDate().toLocaleDateString('en-US', {
                     month: 'long',
                     year: 'numeric',
                   })}
@@ -209,16 +250,17 @@ export default function ProfilePage() {
                 <TabsTrigger value="created">Events Created</TabsTrigger>
               </TabsList>
               <TabsContent value="attending" className="mt-6 space-y-4">
-                {attendingEvents.map((event) => (
+                {(attendingEvents || []).map((event) => (
                   <ProfileEventCard
                     key={event.id}
                     event={event}
                     isCreator={false}
                     onEdit={() => {}}
                     onDelete={() => {}}
+                    attendeeCount={attendeeCounts[event.id] || 0}
                   />
                 ))}
-                {attendingEvents.length === 0 && (
+                {(!attendingEvents || attendingEvents.length === 0) && (
                   <Card className="flex items-center justify-center h-40 bg-secondary border-dashed">
                     <p className="text-center text-muted-foreground">
                       You are not attending any events yet.
@@ -227,16 +269,17 @@ export default function ProfilePage() {
                 )}
               </TabsContent>
               <TabsContent value="created" className="mt-6 space-y-4">
-                {createdEvents.map((event) => (
+                {(createdEvents || []).map((event) => (
                   <ProfileEventCard
                     key={event.id}
                     event={event}
                     isCreator={true}
                     onEdit={() => handleEdit(event)}
                     onDelete={() => handleDelete(event)}
+                    attendeeCount={attendeeCounts[event.id] || 0}
                   />
                 ))}
-                {createdEvents.length === 0 && (
+                {(!createdEvents || createdEvents.length === 0) && (
                    <Card className="flex items-center justify-center h-40 bg-secondary border-dashed">
                     <p className="text-center text-muted-foreground">
                       You have not created any events yet.

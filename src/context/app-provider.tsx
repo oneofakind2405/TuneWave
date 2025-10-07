@@ -1,37 +1,57 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction, useEffect } from 'react';
-import { User } from '@/lib/users';
-import { events as initialEvents, Event } from '@/lib/events-data';
+import { Event } from '@/lib/events-data';
+import { useCollection, useFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 
-// undefined means the user state is still loading
 type AppContextType = {
-  user: User | null | undefined;
-  setUser: Dispatch<SetStateAction<User | null | undefined>>;
+  user: any | null | undefined;
+  setUser: Dispatch<SetStateAction<any | null | undefined>>;
   events: Event[];
   setEvents: Dispatch<SetStateAction<Event[]>>;
   attendingEventIds: Set<string>;
   setAttendingEventIds: Dispatch<SetStateAction<Set<string>>>;
+  isLoading: boolean;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null | undefined>(undefined);
-  const [events, setEvents] = useState<Event[]>(initialEvents);
-  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set(['3', '5']));
+  const { firestore, user: authUser, isUserLoading } = useFirebase();
+  const [user, setUser] = useState<any | null | undefined>(undefined);
+  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set());
 
-  // In a real app, you'd fetch the user session here.
-  // For now, we'll just initialize it as null after a short delay to simulate loading.
+  const eventsQuery = firestore ? query(collection(firestore, 'events'), orderBy('createdAt', 'desc')) : null;
+  const { data: events, isLoading: isEventsLoading } = useCollection<Event>(eventsQuery);
+
+  const attendingQuery = firestore && authUser ? collection(firestore, 'users', authUser.uid, 'attending') : null;
+  const { data: attendingData } = useCollection(attendingQuery);
+
   useEffect(() => {
-     const timer = setTimeout(() => {
-        setUser(null);
-     }, 500);
-     return () => clearTimeout(timer);
-  }, []);
+    if (attendingData) {
+      setAttendingEventIds(new Set(attendingData.map(doc => doc.id)));
+    }
+  }, [attendingData]);
+
+  useEffect(() => {
+    if (!isUserLoading) {
+      setUser(authUser);
+    }
+  }, [isUserLoading, authUser]);
+
+  const isLoading = isUserLoading || isEventsLoading;
 
   return (
-    <AppContext.Provider value={{ user, setUser, events, setEvents, attendingEventIds, setAttendingEventIds }}>
+    <AppContext.Provider value={{ 
+      user, 
+      setUser, 
+      events: events || [],
+      setEvents: () => {}, // This is now read-only from Firestore
+      attendingEventIds, 
+      setAttendingEventIds,
+      isLoading
+    }}>
       {children}
     </AppContext.Provider>
   );

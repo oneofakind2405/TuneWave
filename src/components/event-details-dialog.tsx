@@ -9,11 +9,10 @@ import {
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
 import { Calendar, Clock, MapPin, Pencil, Trash2, User, UserPlus, CheckCircle } from 'lucide-react';
-import { format } from 'date-fns';
 import Image from 'next/image';
 import { Button } from './ui/button';
 import { Separator } from './ui/separator';
-import { User as UserType } from '@/lib/users';
+import { User as AuthUser } from 'firebase/auth';
 
 
 interface EventDetailsDialogProps {
@@ -23,7 +22,7 @@ interface EventDetailsDialogProps {
   onEdit: () => void;
   onDelete: () => void;
   isCreator: boolean;
-  user: UserType | null | undefined;
+  user: AuthUser | null | undefined;
   onSignInClick: () => void;
   isAttending: boolean;
   onToggleAttend: () => void;
@@ -60,7 +59,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
             <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-4">
                 <div className='flex items-start gap-2'>
                     <Calendar className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                    <span>{format(new Date(event.date), 'EEEE, MMM d, yyyy')}</span>
+                    <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
                 </div>
                 <div className='flex items-start gap-2'>
                     <Clock className="h-4 w-4 flex-shrink-0 mt-0.5" />
@@ -72,7 +71,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
                 </div>
                  <div className='flex items-start gap-2'>
                     <User className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                    <span>Created by: {event.creatorId.replace('user-', '')}</span>
+                    <span>Created by: {event.creatorId.substring(0, 6)}...</span>
                 </div>
             </div>
 

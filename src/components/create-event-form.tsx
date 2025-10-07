@@ -48,7 +48,7 @@ type EventFormValues = z.infer<typeof formSchema>;
 interface CreateEventFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (event: Omit<Event, 'id' | 'creatorId'>) => void;
+  onCreate: (event: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => void;
 }
 
 export function CreateEventForm({
@@ -67,13 +67,13 @@ export function CreateEventForm({
         date: '',
         time: '',
         category: 'Rock',
-        imageUrl: '',
-        imageHint: ''
+        imageUrl: 'https://picsum.photos/seed/event-placeholder/400/300',
+        imageHint: 'concert band'
     },
   });
 
   const onSubmit = (data: EventFormValues) => {
-    onCreate(data);
+    onCreate(data as any);
     onOpenChange(false);
     form.reset();
     setImagePreview(null);
