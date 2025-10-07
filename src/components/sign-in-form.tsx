@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { useFirebase } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -58,6 +58,30 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
     } catch (error: any) {
       console.error("Sign In error:", error);
       toast({ variant: 'destructive', title: "Sign In Failed", description: "Invalid email or password." });
+    }
+  };
+  
+  const handlePasswordReset = async () => {
+    const email = form.getValues('email');
+    if (!email) {
+      form.trigger('email'); // Trigger validation to show error
+      return;
+    }
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: 'Password Reset Email Sent',
+        description: `If an account exists for ${email}, a password reset link has been sent to it.`,
+      });
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      // Avoid revealing if an email exists or not for security reasons
+      toast({
+        variant: 'destructive',
+        title: 'Error Sending Email',
+        description: 'There was a problem sending the password reset email. Please try again.',
+      });
     }
   };
 
@@ -98,6 +122,16 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
                 </FormItem>
               )}
             />
+             <div className="text-right">
+              <Button
+                type="button"
+                variant="link"
+                className="p-0 h-auto text-sm"
+                onClick={handlePasswordReset}
+              >
+                Forgot Password?
+              </Button>
+            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
               <Button type="submit">Sign In</Button>
