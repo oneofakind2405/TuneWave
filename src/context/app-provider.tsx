@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction } from 'react';
+import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction, useEffect } from 'react';
 import { User } from '@/lib/users';
 import { events as initialEvents, Event } from '@/lib/events-data';
 
@@ -23,11 +23,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // In a real app, you'd fetch the user session here.
   // For now, we'll just initialize it as null after a short delay to simulate loading.
-  useState(() => {
-     setTimeout(() => {
+  useEffect(() => {
+     const timer = setTimeout(() => {
         setUser(null);
-     }, 500)
-  });
+     }, 500);
+     return () => clearTimeout(timer);
+  }, []);
 
   return (
     <AppContext.Provider value={{ user, setUser, events, setEvents, attendingEventIds, setAttendingEventIds }}>
