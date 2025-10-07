@@ -26,18 +26,19 @@ export function EventDetailsDialog({ event, open, onOpenChange }: EventDetailsDi
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md p-0">
-          <div className="relative aspect-video w-full overflow-hidden">
+      <DialogContent className="max-w-4xl p-0">
+        <div className="grid md:grid-cols-2">
+          <div className="relative h-64 w-full overflow-hidden md:h-full">
             <Image
               src={event.imageUrl}
               alt={event.title}
               fill
               className="object-cover"
-              sizes="100vw"
+              sizes="(max-width: 768px) 100vw, 50vw"
               data-ai-hint={event.imageHint}
             />
           </div>
-          <div className="p-6">
+          <div className="flex flex-col p-6">
             <div className="mb-2">
                 <Badge variant="secondary" className="bg-purple-100 text-purple-700">{event.category}</Badge>
             </div>
@@ -55,12 +56,15 @@ export function EventDetailsDialog({ event, open, onOpenChange }: EventDetailsDi
                 </div>
             </div>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-            <MapPin className="h-4 w-4 flex-shrink-0" />
-            <span>{event.location}</span>
+              <MapPin className="h-4 w-4 flex-shrink-0" />
+              <span>{event.location}</span>
             </div>
-            <p className="text-muted-foreground mb-6">{event.description}</p>
-            <Button onClick={() => onOpenChange(false)} className="w-full bg-primary hover:bg-primary/90 text-primary-foreground">Close</Button>
+            <div className="flex-grow overflow-y-auto pr-2" style={{maxHeight: 'calc(100vh - 300px)'}}>
+                <p className="text-muted-foreground">{event.description}</p>
+            </div>
+            <Button onClick={() => onOpenChange(false)} className="mt-6 w-full bg-primary hover:bg-primary/90 text-primary-foreground">Close</Button>
           </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
