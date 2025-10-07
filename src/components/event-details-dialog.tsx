@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Pencil, Trash2, User, UserPlus } from 'lucide-react';
+import { Calendar, Clock, MapPin, Pencil, Trash2, User, UserPlus, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Button } from './ui/button';
@@ -26,10 +26,19 @@ interface EventDetailsDialogProps {
   onSignInClick: () => void;
 }
 
+// Mock function to check attendance
+const isUserAttending = (eventId: string, userId: string) => {
+    // In a real app, this would check against a database
+    return ['3', '5'].includes(eventId) && userId === 'user-liam';
+}
+
+
 export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator, user, onSignInClick }: EventDetailsDialogProps) {
   if (!event) {
     return null;
   }
+  
+  const isAttending = user ? isUserAttending(event.id, user.id) : false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,9 +103,13 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
                     <Trash2 className="mr-2 h-4 w-4" /> Delete
                   </Button>
                 </>
+              ) : isAttending ? (
+                <Button variant="secondary" className="w-full" disabled>
+                  <CheckCircle className="mr-2 h-4 w-4" /> Attending
+                </Button>
               ) : (
-                <Button variant="default" className="w-full" disabled>
-                  Attending
+                <Button variant="default" className="w-full">
+                   <UserPlus className="mr-2 h-4 w-4" /> Join this event
                 </Button>
               )}
               <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">

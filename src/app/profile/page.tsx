@@ -13,7 +13,7 @@ import Image from 'next/image';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
-import { users } from '@/lib/users';
+import { users, User } from '@/lib/users';
 
 function ProfileEventCard({
   event,
@@ -90,6 +90,13 @@ function ProfileEventCard({
   );
 }
 
+// Mock function to check attendance
+const isUserAttending = (eventId: string, userId: string) => {
+    // In a real app, this would check against a database
+    return ['3', '5'].includes(eventId) && userId === 'user-liam';
+}
+
+
 export default function ProfilePage() {
   const [events, setEvents] = useState(initialEvents);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -98,7 +105,7 @@ export default function ProfilePage() {
   const [isCreating, setIsCreating] = useState(false);
 
   // This should come from auth state
-  const [user, setUser] = useState(users[0]);
+  const [user, setUser] = useState<User | null>(users[0]);
 
   const handleEdit = (event: Event) => {
     setSelectedEvent(event);
@@ -136,7 +143,7 @@ export default function ProfilePage() {
   };
 
 
-  const attendingEvents = events.slice(3, 5); // Mock data
+  const attendingEvents = user ? events.filter(event => isUserAttending(event.id, user.id)) : [];
   const createdEvents = user ? events.filter((event) => event.creatorId === user.id) : [];
 
   if (!user) {
