@@ -8,21 +8,32 @@ import { SignInForm } from './sign-in-form';
 import { SignUpForm } from './sign-up-form';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { useRouter } from 'next/navigation';
 
 export function Header() {
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   // We'll use a mock user for now. In a real app, you'd get this from your auth state.
-  const [user, setUser] = useState<{name: string, email: string} | null>(null);
+  const [user, setUser] = useState<{name: string, email: string, initials: string} | null>(null);
+  const router = useRouter();
 
-  const handleSignIn = () => {
+
+  const handleSignInSuccess = () => {
     // In a real app, this would be the result of your auth flow
-    setUser({name: 'Liam Ottley', email: 'liamottley@gmail.com'});
+    setUser({name: 'Liam Ottley', email: 'liamottley@gmail.com', initials: 'LO'});
     setIsSignInOpen(false);
+    router.push('/profile');
   }
 
   const handleSignOut = () => {
     setUser(null);
+    router.push('/');
+  }
+
+  const handleSignUpSuccess = () => {
+    // For now, just switch to sign in
+    setIsSignUpOpen(false);
+    setIsSignInOpen(true);
   }
 
   return (
@@ -39,7 +50,7 @@ export function Header() {
             </Link>
             {user && (
                 <Link href="/profile" className="text-muted-foreground transition-colors hover:text-foreground">
-                    + Create Event
+                    My Profile
                 </Link>
             )}
           </nav>
@@ -49,8 +60,8 @@ export function Header() {
                <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                        <Avatar className="h-8 w-8">
-                            <AvatarFallback>LO</AvatarFallback>
+                        <Avatar className="h-8 w-8 text-lg">
+                            <AvatarFallback className="bg-primary text-primary-foreground">{user.initials}</AvatarFallback>
                         </Avatar>
                     </Button>
                 </DropdownMenuTrigger>
@@ -67,6 +78,9 @@ export function Header() {
                     <DropdownMenuItem asChild>
                        <Link href="/profile">Profile</Link>
                     </DropdownMenuItem>
+                     <DropdownMenuItem onClick={() => setIsCreating(true)}>
+                        Create Event
+                    </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut}>
                         Log out
@@ -82,11 +96,16 @@ export function Header() {
           </div>
         </div>
       </header>
-      <SignInForm open={isSignInOpen} onOpenChange={setIsSignInOpen} onSignedIn={handleSignIn}/>
-      <SignUpForm open={isSignUpOpen} onOpenChange={setIsSignUpOpen} onSwitchToSignIn={() => {
-        setIsSignUpOpen(false);
-        setIsSignInOpen(true);
-      }} />
+      <SignInForm open={isSignInOpen} onOpenChange={setIsSignInOpen} onSignedIn={handleSignInSuccess}/>
+      <SignUpForm 
+        open={isSignUpOpen} 
+        onOpenChange={setIsSignUpOpen} 
+        onSignUpSuccess={handleSignUpSuccess}
+        onSwitchToSignIn={() => {
+          setIsSignUpOpen(false);
+          setIsSignInOpen(true);
+        }} 
+      />
     </>
   );
 }

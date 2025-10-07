@@ -8,10 +8,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { events as initialEvents, Event } from '@/lib/events-data';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Edit, MapPin, Trash2, Users } from 'lucide-react';
+import { Calendar, Clock, Edit, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
 import Image from 'next/image';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { EditEventForm } from '@/components/edit-event-form';
+import { CreateEventForm } from '@/components/create-event-form';
 
 function ProfileEventCard({
   event,
@@ -93,7 +94,9 @@ export default function ProfilePage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
+  // This should come from auth state
   const user = {
     id: 'user-liam',
     name: 'Liam Ottley',
@@ -126,8 +129,18 @@ export default function ProfilePage() {
     setSelectedEvent(null);
   };
 
-  // We will add attending events later
-  const attendingEvents = events.slice(3, 5);
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
+    const newEvent: Event = {
+      ...newEventData,
+      id: Date.now().toString(),
+      creatorId: user.id, 
+    };
+    setEvents([newEvent, ...events]);
+    setIsCreating(false);
+  };
+
+
+  const attendingEvents = events.slice(3, 5); // Mock data
   const createdEvents = events.filter((event) => event.creatorId === user.id);
 
   return (
@@ -135,14 +148,14 @@ export default function ProfilePage() {
       <div className="flex min-h-screen flex-col">
         <Header />
         <main className="flex-1 py-12">
-          <div className="container max-w-4xl">
-            <div className="flex items-center gap-6 mb-8">
-              <Avatar className="h-20 w-20 text-3xl">
+          <div className="container max-w-5xl">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">
+              <Avatar className="h-24 w-24 text-4xl">
                 <AvatarFallback className="bg-primary text-primary-foreground">
                   {user.initials}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-grow">
                 <h1 className="text-3xl font-bold">{user.name}</h1>
                 <p className="text-muted-foreground">{user.email}</p>
                 <p className="text-sm text-muted-foreground mt-1">
@@ -153,6 +166,10 @@ export default function ProfilePage() {
                   })}
                 </p>
               </div>
+               <Button onClick={() => setIsCreating(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Create Event
+              </Button>
             </div>
 
             <Tabs defaultValue="created" className="w-full">
@@ -171,9 +188,11 @@ export default function ProfilePage() {
                   />
                 ))}
                 {attendingEvents.length === 0 && (
-                  <p className="text-center text-muted-foreground">
-                    You are not attending any events yet.
-                  </p>
+                  <Card className="flex items-center justify-center h-40 bg-secondary border-dashed">
+                    <p className="text-center text-muted-foreground">
+                      You are not attending any events yet.
+                    </p>
+                  </Card>
                 )}
               </TabsContent>
               <TabsContent value="created" className="mt-6 space-y-4">
@@ -187,15 +206,27 @@ export default function ProfilePage() {
                   />
                 ))}
                 {createdEvents.length === 0 && (
-                  <p className="text-center text-muted-foreground">
-                    You have not created any events yet.
-                  </p>
+                   <Card className="flex items-center justify-center h-40 bg-secondary border-dashed">
+                    <p className="text-center text-muted-foreground">
+                      You have not created any events yet.
+                    </p>
+                  </Card>
                 )}
               </TabsContent>
             </Tabs>
           </div>
         </main>
       </div>
+
+       <CreateEventForm
+        open={isCreating}
+        onOpenChange={(open) => {
+          if (!open) {
+            setIsCreating(false);
+          }
+        }}
+        onCreate={handleCreate}
+      />
 
       <EditEventForm
         event={selectedEvent}

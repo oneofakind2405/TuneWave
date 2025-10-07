@@ -21,7 +21,6 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -37,7 +36,6 @@ interface SignInFormProps {
 }
 
 export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) {
-  const router = useRouter();
   const form = useForm<SignInFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -50,8 +48,6 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
     console.log('Sign In data:', data);
     // TODO: Implement actual sign-in logic
     onSignedIn();
-    onOpenChange(false);
-    router.push('/profile');
   };
 
   return (

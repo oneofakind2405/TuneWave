@@ -23,7 +23,9 @@ import {
 import { Input } from '@/components/ui/input';
 
 const formSchema = z.object({
+  name: z.string().min(1, 'Name is required'),
   email: z.string().email('Invalid email address'),
+  password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
 type SignUpFormValues = z.infer<typeof formSchema>;
@@ -32,33 +34,49 @@ interface SignUpFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSwitchToSignIn: () => void;
+  onSignUpSuccess: () => void;
 }
 
-export function SignUpForm({ open, onOpenChange, onSwitchToSignIn }: SignUpFormProps) {
+export function SignUpForm({ open, onOpenChange, onSwitchToSignIn, onSignUpSuccess }: SignUpFormProps) {
   const form = useForm<SignUpFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      name: '',
       email: '',
+      password: '',
     },
   });
 
   const onSubmit = (data: SignUpFormValues) => {
     console.log('Sign Up data:', data);
     // TODO: Implement actual sign-up logic
-    onOpenChange(false);
+    onSignUpSuccess();
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Sign Up</DialogTitle>
+          <DialogTitle>Create an Account</DialogTitle>
           <DialogDescription>
-            Create an account to start managing your events.
+            Sign up to start creating and managing your events.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your Name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <FormField
               control={form.control}
               name="email"
@@ -72,10 +90,23 @@ export function SignUpForm({ open, onOpenChange, onSwitchToSignIn }: SignUpFormP
                 </FormItem>
               )}
             />
-             <DialogFooter className="sm:justify-between items-center">
+             <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="••••••••" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+             <DialogFooter className="sm:justify-between items-center pt-2">
               <div className='text-sm'>
                 Already have an account?{' '}
-                <Button variant="link" size="sm" className="p-0 h-auto" onClick={onSwitchToSignIn}>
+                <Button variant="link" size="sm" className="p-0 h-auto" type="button" onClick={onSwitchToSignIn}>
                   Sign In
                 </Button>
               </div>

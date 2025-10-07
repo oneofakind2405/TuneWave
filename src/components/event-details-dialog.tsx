@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
-import { Calendar, Clock, MapPin, Pencil, Trash2 } from 'lucide-react';
+import { Calendar, Clock, MapPin, Pencil, Trash2, User } from 'lucide-react';
 import { format } from 'date-fns';
 import Image from 'next/image';
 import { Button } from './ui/button';
@@ -20,9 +20,10 @@ interface EventDetailsDialogProps {
   onOpenChange: (open: boolean) => void;
   onEdit: () => void;
   onDelete: () => void;
+  isCreator: boolean;
 }
 
-export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete }: EventDetailsDialogProps) {
+export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator }: EventDetailsDialogProps) {
   if (!event) {
     return null;
   }
@@ -31,7 +32,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl p-0">
         <div className="grid md:grid-cols-2">
-          <div className="relative h-64 w-full overflow-hidden md:h-full">
+          <div className="relative h-64 w-full overflow-hidden md:h-full md:rounded-l-lg">
             <Image
               src={event.imageUrl}
               alt={event.title}
@@ -45,34 +46,48 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
             <div className="mb-2">
                 <Badge variant="secondary" className="bg-purple-100 text-purple-700">{event.category}</Badge>
             </div>
-            <DialogHeader>
-              <DialogTitle className="text-2xl font-bold mb-2 text-left">{event.title}</DialogTitle>
+            <DialogHeader className="p-0 text-left mb-4">
+              <DialogTitle className="text-3xl font-bold">{event.title}</DialogTitle>
             </DialogHeader>
-            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                <div className='flex items-center gap-2'>
-                    <Calendar className="h-4 w-4 flex-shrink-0" />
-                    <span>{format(new Date(event.date), 'MMM d, yyyy')}</span>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground mb-4">
+                <div className='flex items-start gap-2'>
+                    <Calendar className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{format(new Date(event.date), 'EEEE, MMM d, yyyy')}</span>
                 </div>
-                <div className='flex items-center gap-2'>
-                    <Clock className="h-4 w-4 flex-shrink-0" />
+                <div className='flex items-start gap-2'>
+                    <Clock className="h-4 w-4 flex-shrink-0 mt-0.5" />
                     <span>{event.time}</span>
                 </div>
+                <div className='flex items-start gap-2 col-span-2'>
+                    <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{event.location}</span>
+                </div>
+                 <div className='flex items-start gap-2'>
+                    <User className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>Created by: {event.creatorId.replace('user-', '')}</span>
+                </div>
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-              <MapPin className="h-4 w-4 flex-shrink-0" />
-              <span>{event.location}</span>
-            </div>
-            <div className="flex-grow overflow-y-auto pr-2" style={{maxHeight: 'calc(100vh - 350px)'}}>
-                <p className="text-muted-foreground">{event.description}</p>
-            </div>
+
             <Separator className="my-4" />
+
+            <div className="flex-grow overflow-y-auto pr-2 text-sm" style={{maxHeight: 'calc(100vh - 450px)'}}>
+                <p className="text-muted-foreground whitespace-pre-wrap">{event.description}</p>
+            </div>
+            
+            <Separator className="my-4" />
+
             <div className="flex flex-col sm:flex-row gap-2">
-                <Button onClick={onEdit} className="w-full">
-                    <Pencil className="mr-2 h-4 w-4" /> Edit Event
-                </Button>
-                <Button onClick={onDelete} variant="destructive" className="w-full">
-                    <Trash2 className="mr-2 h-4 w-4" /> Delete Event
-                </Button>
+                {isCreator && (
+                  <>
+                    <Button onClick={onEdit} className="w-full">
+                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                    </Button>
+                    <Button onClick={onDelete} variant="destructive" className="w-full">
+                        <Trash2 className="mr-2 h-4 w-4" /> Delete
+                    </Button>
+                  </>
+                )}
                 <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>
             </div>
           </div>
