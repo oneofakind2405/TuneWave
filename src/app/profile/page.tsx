@@ -15,7 +15,7 @@ import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
 import { useAppContext } from '@/context/app-provider';
 import { useRouter } from 'next/navigation';
-import { useFirebase, useCollection, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirebase, useCollection, useDoc, setDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
@@ -139,19 +139,33 @@ export default function ProfilePage() {
   }, [firestore, attendingEventIds]);
   const { data: attendingEvents, isLoading: isAttendingEventsLoading } = useCollection<Event>(attendingEventsQuery);
 
-  // Fetch attendee counts for created events
+  // Fetch attendee counts for all relevant events
   const [attendeeCounts, setAttendeeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    if (createdEvents && firestore) {
-      createdEvents.forEach(event => {
-        const attendeesCol = collection(firestore, 'events', event.id, 'attendees');
-        getDocs(attendeesCol).then(snapshot => {
-          setAttendeeCounts(prev => ({ ...prev, [event.id]: snapshot.size }));
-        });
-      });
+    const allEvents = [...(createdEvents || []), ...(attendingEvents || [])];
+    const uniqueEventIds = [...new Set(allEvents.map(e => e.id))];
+
+    if (uniqueEventIds.length > 0 && firestore) {
+      const fetchCounts = async () => {
+        const counts: Record<string, number> = {};
+        for (const eventId of uniqueEventIds) {
+          try {
+            const attendeesCol = collection(firestore, 'events', eventId, 'attendees');
+            const snapshot = await getDocs(attendeesCol);
+            counts[eventId] = snapshot.size;
+          } catch (error) {
+            // This might fail if rules don't allow listing attendees for events not created by user.
+            // We can handle this gracefully.
+            console.warn(`Could not fetch attendee count for event ${eventId}:`, error);
+            counts[eventId] = 0; // Default to 0 if fetching fails
+          }
+        }
+        setAttendeeCounts(counts);
+      };
+      fetchCounts();
     }
-  }, [createdEvents, firestore]);
+  }, [createdEvents, attendingEvents, firestore]);
 
 
   useEffect(() => {
@@ -180,9 +194,9 @@ export default function ProfilePage() {
   };
 
   const handleSave = (updatedEvent: Event) => {
-    if (firestore && updatedEvent) {
+    if (firestore && updatedEvent.id) {
       const eventRef = doc(firestore, 'events', updatedEvent.id);
-      updateDocumentNonBlocking(eventRef, { ...updatedEvent });
+      updateDocumentNonBlocking(eventRef, updatedEvent);
       toast({ title: 'Event updated' });
     }
     setIsEditing(false);
@@ -191,13 +205,15 @@ export default function ProfilePage() {
 
   const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
     if (!authUser || !firestore) return;
+    const newDocRef = doc(collection(firestore, 'events'));
     const newEvent = {
       ...newEventData,
+      id: newDocRef.id,
       creatorId: authUser.uid,
       views: 0,
       createdAt: serverTimestamp(),
     };
-    addDocumentNonBlocking(collection(firestore, 'events'), newEvent);
+    setDocumentNonBlocking(newDocRef, newEvent, {});
     toast({ title: 'Event created' });
     setIsCreating(false);
   };

@@ -21,9 +21,9 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { useFirebase } from '@/firebase';
+import { useFirebase, setDocumentNonBlocking } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -60,13 +60,15 @@ export function SignUpForm({ open, onOpenChange, onSwitchToSignIn, onSignUpSucce
       const user = userCredential.user;
 
       const userDocRef = doc(firestore, 'users', user.uid);
-      await setDoc(userDocRef, {
+      
+      // Use the non-blocking wrapper
+      setDocumentNonBlocking(userDocRef, {
         id: user.uid,
         name: data.name,
         email: data.email,
         initials: data.name.split(' ').map(n => n[0]).join('').toUpperCase(),
         memberSince: serverTimestamp(),
-      });
+      }, {});
 
       toast({ title: "Account Created", description: "You have successfully signed up." });
       onSignUpSuccess();
