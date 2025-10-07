@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -218,8 +219,7 @@ export default function ProfilePage() {
     setIsCreating(false);
   };
   
-  const isAttendingHookLoading = attendingEventIds.size > 0 && isAttendingEventsLoading;
-  const isLoading = isAppLoading || isUserLoading || isCreatedEventsLoading || isAttendingHookLoading;
+  const isLoading = isAppLoading || isUserLoading || isCreatedEventsLoading || isAttendingEventsLoading;
 
   if (isLoading || !userProfile) {
     return (
