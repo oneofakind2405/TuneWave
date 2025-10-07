@@ -1,4 +1,3 @@
-import { BlogPostGenerator } from "@/components/blog-post-generator";
 import { EventsSection } from "@/components/events-section";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
@@ -11,7 +10,6 @@ export default function Home() {
       <main className="flex-1">
         <HeroSection />
         <EventsSection />
-        <BlogPostGenerator />
       </main>
       <Footer />
     </div>
