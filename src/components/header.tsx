@@ -10,10 +10,9 @@ export function Header() {
           <Music2 className="h-6 w-6 text-primary" />
           <span className="hidden font-bold sm:inline-block">TuneWave</span>
         </Link>
-        <div className="flex flex-1 items-center justify-end">
-          <Button asChild>
-            <Link href="#events">Explore Events</Link>
-          </Button>
+        <div className="flex flex-1 items-center justify-end gap-2">
+          <Button variant="outline">Sign In</Button>
+          <Button>Sign Up</Button>
         </div>
       </div>
     </header>
