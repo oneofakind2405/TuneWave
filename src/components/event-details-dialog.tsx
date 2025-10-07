@@ -15,6 +15,7 @@ import { Button } from './ui/button';
 import { Separator } from './ui/separator';
 import { User as UserType } from '@/lib/users';
 
+
 interface EventDetailsDialogProps {
   event: Event | null;
   open: boolean;
@@ -24,21 +25,15 @@ interface EventDetailsDialogProps {
   isCreator: boolean;
   user: UserType | null;
   onSignInClick: () => void;
-}
-
-// Mock function to check attendance
-const isUserAttending = (eventId: string, userId: string) => {
-    // In a real app, this would check against a database
-    return ['3', '5'].includes(eventId) && userId === 'user-liam';
+  isAttending: boolean;
+  onToggleAttend: () => void;
 }
 
 
-export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator, user, onSignInClick }: EventDetailsDialogProps) {
+export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete, isCreator, user, onSignInClick, isAttending, onToggleAttend }: EventDetailsDialogProps) {
   if (!event) {
     return null;
   }
-  
-  const isAttending = user ? isUserAttending(event.id, user.id) : false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -104,11 +99,11 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
                   </Button>
                 </>
               ) : isAttending ? (
-                <Button variant="secondary" className="w-full" disabled>
+                <Button variant="secondary" className="w-full" onClick={onToggleAttend}>
                   <CheckCircle className="mr-2 h-4 w-4" /> Attending
                 </Button>
               ) : (
-                <Button variant="default" className="w-full">
+                <Button variant="default" className="w-full" onClick={onToggleAttend}>
                    <UserPlus className="mr-2 h-4 w-4" /> Join this event
                 </Button>
               )}

@@ -43,6 +43,7 @@ export function EventsSection({ user, onSetUser }: EventsSectionProps) {
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
+  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set(['3', '5']));
 
 
   const handleSelectEvent = (event: Event) => {
@@ -117,6 +118,22 @@ export function EventsSection({ user, onSetUser }: EventsSectionProps) {
     setIsSignInOpen(true);
   };
 
+  const handleToggleAttend = () => {
+    if (!user || !selectedEvent) return;
+
+    setAttendingEventIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(selectedEvent.id)) {
+        newSet.delete(selectedEvent.id);
+        toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
+      } else {
+        newSet.add(selectedEvent.id);
+        toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
+      }
+      return newSet;
+    });
+  };
+
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'All') {
       return events;
@@ -184,6 +201,8 @@ export function EventsSection({ user, onSetUser }: EventsSectionProps) {
         isCreator={!!user && selectedEvent?.creatorId === user.id}
         user={user}
         onSignInClick={openSignIn}
+        isAttending={!!selectedEvent && attendingEventIds.has(selectedEvent.id)}
+        onToggleAttend={handleToggleAttend}
       />
 
       <EditEventForm 

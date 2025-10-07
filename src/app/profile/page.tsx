@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/header';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -90,12 +90,6 @@ function ProfileEventCard({
   );
 }
 
-// Mock function to check attendance
-const isUserAttending = (eventId: string, userId: string) => {
-    // In a real app, this would check against a database
-    return ['3', '5'].includes(eventId) && userId === 'user-liam';
-}
-
 
 export default function ProfilePage() {
   const [events, setEvents] = useState(initialEvents);
@@ -103,9 +97,15 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
+  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set(['3', '5']));
 
   // This should come from auth state
-  const [user, setUser] = useState<User | null>(users[0]);
+  const [user, setUser] = useState<User | null>(null);
+
+  useEffect(() => {
+    // Mock user login
+    setUser(users[0]);
+  }, []);
 
   const handleEdit = (event: Event) => {
     setSelectedEvent(event);
@@ -142,8 +142,7 @@ export default function ProfilePage() {
     setIsCreating(false);
   };
 
-
-  const attendingEvents = user ? events.filter(event => isUserAttending(event.id, user.id)) : [];
+  const attendingEvents = user ? events.filter(event => attendingEventIds.has(event.id)) : [];
   const createdEvents = user ? events.filter((event) => event.creatorId === user.id) : [];
 
   if (!user) {
@@ -152,7 +151,7 @@ export default function ProfilePage() {
         <div className="flex min-h-screen flex-col">
             <Header user={null} onSetUser={() => {}} />
             <div className="flex-1 flex items-center justify-center">
-                <p>Please sign in to view your profile.</p>
+                <p>Loading profile...</p>
             </div>
         </div>
     )
