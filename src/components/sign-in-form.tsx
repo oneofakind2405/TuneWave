@@ -56,7 +56,8 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
       toast({ title: "Signed In", description: "Welcome back!" });
       onSignedIn();
     } catch (error: any) {
-      console.error("Sign In error:", error);
+      // Use console.warn to avoid the Next.js error overlay for invalid credentials
+      console.warn("Sign In error (auth/invalid-credential):", error.message);
       toast({ variant: 'destructive', title: "Sign In Failed", description: "Invalid email or password." });
     }
   };
