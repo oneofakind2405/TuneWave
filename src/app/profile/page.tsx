@@ -15,8 +15,8 @@ import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
 import { useAppContext } from '@/context/app-provider';
 import { useRouter } from 'next/navigation';
-import { useFirebase, useCollection, useDoc } from '@/firebase';
-import { collection, query, where, doc, deleteDoc, updateDoc, addDoc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { useFirebase, useCollection, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, serverTimestamp, getDocs } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 
 
@@ -170,26 +170,26 @@ export default function ProfilePage() {
     setIsDeleting(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (selectedEvent && firestore) {
-      await deleteDoc(doc(firestore, 'events', selectedEvent.id));
+      deleteDocumentNonBlocking(doc(firestore, 'events', selectedEvent.id));
       toast({ title: 'Event deleted' });
     }
     setIsDeleting(false);
     setSelectedEvent(null);
   };
 
-  const handleSave = async (updatedEvent: Event) => {
+  const handleSave = (updatedEvent: Event) => {
     if (firestore && updatedEvent) {
       const eventRef = doc(firestore, 'events', updatedEvent.id);
-      await updateDoc(eventRef, { ...updatedEvent });
+      updateDocumentNonBlocking(eventRef, { ...updatedEvent });
       toast({ title: 'Event updated' });
     }
     setIsEditing(false);
     setSelectedEvent(null);
   };
 
-  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
     if (!authUser || !firestore) return;
     const newEvent = {
       ...newEventData,
@@ -197,7 +197,7 @@ export default function ProfilePage() {
       views: 0,
       createdAt: serverTimestamp(),
     };
-    await addDoc(collection(firestore, 'events'), newEvent);
+    addDocumentNonBlocking(collection(firestore, 'events'), newEvent);
     toast({ title: 'Event created' });
     setIsCreating(false);
   };

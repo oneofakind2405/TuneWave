@@ -15,8 +15,8 @@ import { SignInForm } from './sign-in-form';
 import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
-import { useFirebase } from '@/firebase';
-import { doc, deleteDoc, updateDoc, setDoc, getDoc, serverTimestamp, runTransaction, increment, collection } from 'firebase/firestore';
+import { useFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { doc, serverTimestamp, increment, collection } from 'firebase/firestore';
 import { Card } from './ui/card';
 
 const categories = [
@@ -45,13 +45,13 @@ export function EventsSection() {
   const router = useRouter();
 
 
-  const handleSelectEvent = async (event: Event) => {
+  const handleSelectEvent = (event: Event) => {
     setSelectedEvent(event);
     setIsDetailsOpen(true);
     // Increment view count
     if (firestore && event.id) {
       const eventRef = doc(firestore, 'events', event.id);
-      await updateDoc(eventRef, {
+      updateDocumentNonBlocking(eventRef, {
         views: increment(1)
       });
     }
@@ -77,54 +77,40 @@ export function EventsSection() {
     setIsDeleting(true);
   };
 
-  const confirmDelete = async () => {
+  const confirmDelete = () => {
     if (selectedEvent && firestore) {
-      try {
-        await deleteDoc(doc(firestore, 'events', selectedEvent.id));
-        toast({ title: "Event Deleted", description: "The event has been successfully deleted." });
-      } catch (error: any) {
-        toast({ variant: 'destructive', title: "Deletion Failed", description: error.message });
-      }
+      deleteDocumentNonBlocking(doc(firestore, 'events', selectedEvent.id));
+      toast({ title: "Event Deleted", description: "The event has been successfully deleted." });
     }
     setIsDeleting(false);
     setSelectedEvent(null);
   };
 
-  const handleSave = async (updatedEvent: Event) => {
+  const handleSave = (updatedEvent: Event) => {
     if (firestore) {
-      try {
-        const eventRef = doc(firestore, 'events', updatedEvent.id);
-        await updateDoc(eventRef, { ...updatedEvent });
-        toast({ title: "Event Updated", description: "Your event has been successfully updated." });
-      } catch (error: any) {
-        toast({ variant: 'destructive', title: "Update Failed", description: error.message });
-      }
+      const eventRef = doc(firestore, 'events', updatedEvent.id);
+      updateDocumentNonBlocking(eventRef, { ...updatedEvent });
+      toast({ title: "Event Updated", description: "Your event has been successfully updated." });
     }
     setIsEditing(false);
     setSelectedEvent(null);
   };
 
-  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
     if (!user || !firestore) {
       toast({ variant: 'destructive', title: "Not Signed In", description: "You must be signed in to create an event." });
       return;
     }
-    try {
-      await runTransaction(firestore, async (transaction) => {
-        const newEventRef = doc(collection(firestore, 'events'));
-        transaction.set(newEventRef, {
-          ...newEventData,
-          id: newEventRef.id,
-          creatorId: user.uid,
-          views: 0,
-          createdAt: serverTimestamp(),
-        });
-      });
-      toast({ title: "Event Created", description: "Your new event has been successfully created." });
-      setIsCreating(false);
-    } catch (error: any) {
-      toast({ variant: 'destructive', title: "Creation Failed", description: error.message });
-    }
+    const newDocRef = doc(collection(firestore, 'events'));
+    setDocumentNonBlocking(newDocRef, {
+      ...newEventData,
+      id: newDocRef.id,
+      creatorId: user.uid,
+      views: 0,
+      createdAt: serverTimestamp(),
+    }, {});
+    toast({ title: "Event Created", description: "Your new event has been successfully created." });
+    setIsCreating(false);
   };
 
   const handleSignInSuccess = () => {
@@ -142,33 +128,29 @@ export function EventsSection() {
     setIsSignInOpen(true);
   };
 
-  const handleToggleAttend = async () => {
+  const handleToggleAttend = () => {
     if (!user || !selectedEvent || !firestore) return;
 
     const attendeeRef = doc(firestore, 'events', selectedEvent.id, 'attendees', user.uid);
 
-    try {
-        if (attendingEventIds.has(selectedEvent.id)) {
-            // Leave event
-            await deleteDoc(attendeeRef);
-            setAttendingEventIds(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(selectedEvent.id);
-                return newSet;
-            });
-            toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
-        } else {
-            // Join event
-            await setDoc(attendeeRef, { joinedAt: serverTimestamp() });
-            setAttendingEventIds(prev => {
-                const newSet = new Set(prev);
-                newSet.add(selectedEvent.id);
-                return newSet;
-            });
-            toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
-        }
-    } catch (error: any) {
-        toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+    if (attendingEventIds.has(selectedEvent.id)) {
+        // Leave event
+        deleteDocumentNonBlocking(attendeeRef);
+        setAttendingEventIds(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(selectedEvent.id);
+            return newSet;
+        });
+        toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
+    } else {
+        // Join event
+        setDocumentNonBlocking(attendeeRef, { joinedAt: serverTimestamp() }, {});
+        setAttendingEventIds(prev => {
+            const newSet = new Set(prev);
+            newSet.add(selectedEvent.id);
+            return newSet;
+        });
+        toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
     }
   };
 

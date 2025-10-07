@@ -20,9 +20,9 @@ import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/events-data';
 import { useAppContext } from '@/context/app-provider';
-import { useFirebase } from '@/firebase';
+import { useFirebase, addDocumentNonBlocking } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp } from 'firebase/firestore';
 
 export function Header() {
   const { user, setUser } = useAppContext();
@@ -50,22 +50,17 @@ export function Header() {
     setIsSignInOpen(true);
   };
   
-  const handleCreate = async (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
     if (!user || !firestore) return;
 
-    try {
-      await addDoc(collection(firestore, 'events'), {
-        ...newEventData,
-        creatorId: user.uid,
-        views: 0,
-        createdAt: serverTimestamp(),
-      });
-      toast({ title: "Event Created", description: "Your new event has been successfully created." });
-      setIsCreating(false);
-    } catch (error: any) {
-      console.error("Error creating event:", error);
-      toast({ variant: 'destructive', title: "Creation Failed", description: error.message });
-    }
+    addDocumentNonBlocking(collection(firestore, 'events'), {
+      ...newEventData,
+      creatorId: user.uid,
+      views: 0,
+      createdAt: serverTimestamp(),
+    });
+    toast({ title: "Event Created", description: "Your new event has been successfully created." });
+    setIsCreating(false);
   };
 
   return (
