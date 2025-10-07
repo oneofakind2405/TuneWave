@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { events, type Event } from '@/lib/events-data';
+import { useState, useMemo, useCallback } from 'react';
+import { events as initialEvents, type Event } from '@/lib/events-data';
 import { EventCard } from './event-card';
 import { Button } from './ui/button';
 import { Disc3, Mic, Music } from 'lucide-react';
 import { GuitarIcon } from './icons/guitar';
 import { EventDetailsDialog } from './event-details-dialog';
+import { EditEventForm } from './edit-event-form';
+import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
 
 const categories = [
   { name: 'All', icon: Music },
@@ -18,15 +20,56 @@ const categories = [
 type Category = (typeof categories)[number]['name'];
 
 export function EventsSection() {
+  const [events, setEvents] = useState(initialEvents);
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleSelectEvent = (event: Event) => {
+    setSelectedEvent(event);
+    setIsDetailsOpen(true);
+  };
+  
+  const handleEdit = () => {
+    setIsDetailsOpen(false);
+    setIsEditing(true);
+  };
+
+  const handleDelete = () => {
+    setIsDetailsOpen(false);
+    setIsDeleting(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedEvent) {
+      setEvents(events.filter(e => e.id !== selectedEvent.id));
+    }
+    setIsDeleting(false);
+    setSelectedEvent(null);
+  };
+
+  const handleSave = (updatedEvent: Event) => {
+    setEvents(events.map(e => e.id === updatedEvent.id ? updatedEvent : e));
+    setIsEditing(false);
+    setSelectedEvent(null);
+  };
 
   const filteredEvents = useMemo(() => {
     if (activeCategory === 'All') {
       return events;
     }
     return events.filter((event) => event.category === activeCategory);
-  }, [activeCategory]);
+  }, [activeCategory, events]);
+
+  const closeAllDialogs = useCallback(() => {
+    setIsDetailsOpen(false);
+    setIsEditing(false);
+    setIsDeleting(false);
+    setSelectedEvent(null);
+  }, []);
+
 
   return (
     <>
@@ -58,7 +101,7 @@ export function EventsSection() {
                 className="animate-in fade-in-0 zoom-in-95 duration-500"
                 style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
               >
-                <EventCard event={event} onClick={() => setSelectedEvent(event)} />
+                <EventCard event={event} onClick={() => handleSelectEvent(event)} />
               </div>
             ))}
           </div>
@@ -69,14 +112,26 @@ export function EventsSection() {
           )}
         </div>
       </section>
+      
       <EventDetailsDialog
         event={selectedEvent}
-        open={!!selectedEvent}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedEvent(null);
-          }
-        }}
+        open={isDetailsOpen}
+        onOpenChange={(open) => { if (!open) closeAllDialogs() }}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+      />
+
+      <EditEventForm 
+        event={selectedEvent}
+        open={isEditing}
+        onOpenChange={(open) => { if (!open) closeAllDialogs() }}
+        onSave={handleSave}
+      />
+      
+      <DeleteConfirmationDialog
+        open={isDeleting}
+        onOpenChange={(open) => { if (!open) closeAllDialogs() }}
+        onConfirm={confirmDelete}
       />
     </>
   );
