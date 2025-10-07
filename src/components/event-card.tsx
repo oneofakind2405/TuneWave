@@ -6,11 +6,15 @@ import { format } from 'date-fns';
 
 interface EventCardProps {
   event: Event;
+  onClick: () => void;
 }
 
-export function EventCard({ event }: EventCardProps) {
+export function EventCard({ event, onClick }: EventCardProps) {
   return (
-    <Card className="flex h-full flex-col overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-xl">
+    <Card 
+      onClick={onClick}
+      className="flex h-full cursor-pointer flex-col overflow-hidden transition-transform duration-300 hover:scale-105 hover:shadow-xl"
+    >
       <CardHeader>
         <CardTitle>{event.title}</CardTitle>
         <CardDescription className="line-clamp-2">{event.description}</CardDescription>
