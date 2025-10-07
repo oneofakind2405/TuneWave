@@ -40,7 +40,8 @@ export function EventsSection() {
   };
   
   const handleEdit = () => {
-    if (selectedEvent?.creatorId !== currentUserId) {
+    if (!selectedEvent) return;
+    if (selectedEvent.creatorId !== currentUserId) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only edit your own events." });
         return;
     }
@@ -49,7 +50,8 @@ export function EventsSection() {
   };
 
   const handleDelete = () => {
-    if (selectedEvent?.creatorId !== currentUserId) {
+    if (!selectedEvent) return;
+    if (selectedEvent.creatorId !== currentUserId) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only delete your own events." });
         return;
     }

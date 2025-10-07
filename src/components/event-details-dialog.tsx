@@ -78,7 +78,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
             <Separator className="my-4" />
 
             <div className="flex flex-col sm:flex-row gap-2">
-                {isCreator && (
+                {isCreator ? (
                   <>
                     <Button onClick={onEdit} className="w-full">
                         <Pencil className="mr-2 h-4 w-4" /> Edit
@@ -87,8 +87,10 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
                         <Trash2 className="mr-2 h-4 w-4" /> Delete
                     </Button>
                   </>
+                ) : (
+                   <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>
                 )}
-                <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>
+                 {isCreator && <Button onClick={() => onOpenChange(false)} variant="outline" className="w-full">Close</Button>}
             </div>
           </div>
         </div>
