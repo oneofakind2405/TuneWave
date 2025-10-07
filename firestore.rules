@@ -1,22 +1,20 @@
 /**
- * @fileoverview Firestore Security Rules for Prototyping.
- *
- * Core Philosophy:
- * This ruleset prioritizes secure authorization while being flexible with data shapes to enable rapid prototyping.
- * It enforces strict user-ownership for user profiles and events, and uses an owner-only model for event attendee lists.
+ * @file Firestore Security Rules
+ * @description This ruleset enforces a user-ownership model for user profiles and creator-ownership for events.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles.  Each user can only access their own profile.
- * - /events/{eventId}: Stores event information. Each event has a creator, and only the creator can modify or delete the event. Anyone can read events.
- * - /events/{eventId}/attendees/{userId}: Subcollection to track event attendees. Only the user can manage their own attendance.
+ * - /users/{userId}: Stores user profile information. Only the user can read/write their own profile.
+ * - /events/{eventId}: Stores event information. Anyone can read events, but only the creator can modify or delete them.
+ * - /events/{eventId}/attendees/{userId}: Tracks attendees for each event. Only the user can manage their attendance.
  *
  * Key Security Decisions:
- * - Users can only manage their own data (profile, event attendance).
- * - Event data can be read by anyone.
- * - Schema validation is minimal to accelerate development. Only authorization-critical fields are validated.
+ * - Users can only access their own data under the /users/{userId} collection.
+ * - Public Read for Events: Events are publicly readable to promote discoverability.
+ * - Owner-Only Write for Events: Only the creator of an event can modify or delete it.
+ * - Attendee subcollection allows users to manage their attendance of events.
  *
  * Denormalization for Authorization:
- * - The `creatorId` field within the `/events/{eventId}` document is essential for authorization.  It links the event to its creator, allowing us to enforce creator-only write access.
+ * - Event documents MUST contain a `creatorId` field to easily authorize updates and deletes.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -25,75 +23,76 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile information.
      * @path /users/{userId}
-     * @allow (create) - User with ID 'user123' can create their profile.
-     * @allow (get) - User with ID 'user123' can read their profile.
-     * @allow (update) - User with ID 'user123' can update their profile.
-     * @allow (delete) - User with ID 'user123' can delete their profile.
-     * @deny (create) - User with ID 'user456' cannot create a profile for 'user123'.
-     * @deny (get) - User with ID 'user456' cannot read the profile of 'user123'.
-     * @deny (update) - User with ID 'user456' cannot update the profile of 'user123'.
-     * @deny (delete) - User with ID 'user456' cannot delete the profile of 'user123'.
-     * @principle Enforces user-ownership for profile data.
+     * @allow (create) User with ID 'user123' can create their profile.
+     *   - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "user123", "name": "Test User", "email": "test@example.com", "initials": "TU", "memberSince": "2024-01-01T00:00:00Z" } } }
+     * @allow (get, update, delete) User with ID 'user123' can read/write their profile.
+     *   - Request: { "auth": { "uid": "user123" } }
+     * @deny (create, update, delete) User with ID 'user456' cannot modify user 'user123' profile.
+     *   - Request: { "auth": { "uid": "user456" } }
+     * @principle Enforces user-ownership: Only the authenticated user can access their own profile.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
       allow get: if isOwner(userId);
-      allow list: if false; // Do not allow listing of all users
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId);
-      allow delete: if isOwner(userId);
+      allow list: if false; // User listing is not permitted
+
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Controls access to event information.
+     * @description Controls access to event documents.
      * @path /events/{eventId}
-     * @allow (get) - Any user can read event 'event123'.
-     * @allow (list) - Any user can list events.
-     * @allow (create) - User with ID 'user123' can create a new event. The 'creatorId' field must match the user's ID.
-     * @allow (update) - User with ID 'user123' can update event 'event123' if they are the creator.
-     * @allow (delete) - User with ID 'user123' can delete event 'event123' if they are the creator.
-     * @deny (create) - User with ID 'user456' cannot create an event with 'creatorId' set to 'user123'.
-     * @deny (update) - User with ID 'user456' cannot update event 'event123' even if they know the event ID, if they are not the creator.
-     * @deny (delete) - User with ID 'user456' cannot delete event 'event123' if they are not the creator.
-     * @principle Enforces creator-ownership for event writes, allows public reads.
+     * @allow (get, list) Any user can read/list events.
+     *   - Request: { "auth": { "uid": "anyUser" } }
+     * @allow (create) User with ID 'user123' can create a new event.
+     *   - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "id": "event456", "creatorId": "user123", "title": "My Event", "description": "Event description", "location": "Location", "date": "2024-01-02", "time": "19:00", "category": "Rock", "imageUrl": "http://example.com/image.jpg", "imageHint": "hint", "views": 0 } } }
+     * @allow (update, delete) User with ID 'user123' can modify/delete event 'event456' if they are the creator.
+     *   - Request: { "auth": { "uid": "user123" } }
+     * @deny (create) User with ID 'user456' cannot create an event with creatorId 'user123'.
+     *   - Request: { "auth": { "uid": "user456" }, "resource": { "data": { "id": "event789", "creatorId": "user123", "title": "My Event", "description": "Event description", "location": "Location", "date": "2024-01-02", "time": "19:00", "category": "Rock", "imageUrl": "http://example.com/image.jpg", "imageHint": "hint", "views": 0 } } }
+     * @deny (update, delete) User with ID 'user456' cannot modify/delete event 'event456' created by 'user123'.
+     *   - Request: { "auth": { "uid": "user456" } }
+     * @principle Public read, owner-only writes: Events are publicly readable, but only the creator can modify or delete them.
      */
     match /events/{eventId} {
-      function isOwner(creatorId) {
-        return request.auth.uid == creatorId;
-      }
-
       allow get, list: if true;
-      allow create: if request.resource.data.creatorId == request.auth.uid;
-      allow update: if isOwner(resource.data.creatorId) && resource != null;
-      allow delete: if isOwner(resource.data.creatorId) && resource != null;
+      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.creatorId);
+      allow delete: if isExistingOwner(resource.data.creatorId);
     }
 
     /**
-     * @description Controls access to event attendee information.
+     * @description Controls access to event attendees.
      * @path /events/{eventId}/attendees/{userId}
-     * @allow (create) - User with ID 'user123' can create their attendance record for event 'event123'.
-     * @allow (get) - User with ID 'user123' can read their attendance record for event 'event123'.
-     * @allow (update) - User with ID 'user123' can update their attendance record for event 'event123'.
-     * @allow (delete) - User with ID 'user123' can delete their attendance record for event 'event123'.
-     * @deny (create) - User with ID 'user456' cannot create an attendance record for 'user123' in event 'event123'.
-     * @deny (get) - User with ID 'user456' cannot read the attendance record of 'user123' in event 'event123'.
-     * @deny (update) - User with ID 'user456' cannot update the attendance record of 'user123' in event 'event123'.
-     * @deny (delete) - User with ID 'user456' cannot delete the attendance record of 'user123' in event 'event123'.
-     * @principle Enforces user-ownership for attendance records.
+     * @allow (create) User with ID 'user123' can join the event.
+     *   - Request: { "auth": { "uid": "user123" }, "resource": { "data": { "joinedAt": "2024-01-01T00:00:00Z" } } }
+     * @allow (get, update, delete) User with ID 'user123' can manage their attendance.
+     *   - Request: { "auth": { "uid": "user123" } }
+     * @deny (create, update, delete) User with ID 'user456' cannot join/modify the attendance of user 'user123'.
+     *   - Request: { "auth": { "uid": "user456" } }
+     * @principle Enforces user-ownership for attendance: Only the authenticated user can manage their own attendance.
      */
     match /events/{eventId}/attendees/{userId} {
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
+        allow get: if isOwner(userId);
+        allow list: if false; // Listing attendees is not permitted at this level.
 
-      allow get: if isOwner(userId);
-      allow list: if isOwner(userId);
-      allow create: if isOwner(userId);
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+        allow create: if isOwner(userId);
+        allow update: if isExistingOwner(userId);
+        allow delete: if isExistingOwner(userId);
     }
+  }
+
+  // Helper functions
+  function isSignedIn() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return request.auth.uid == userId;
+  }
+
+  function isExistingOwner(userId) {
+    return isOwner(userId) && resource != null;
   }
 }
