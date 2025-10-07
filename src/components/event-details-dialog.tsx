@@ -3,6 +3,8 @@
 import {
   Dialog,
   DialogContent,
+  DialogHeader,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import type { Event } from '@/lib/events-data';
 import { Badge } from './ui/badge';
@@ -39,7 +41,9 @@ export function EventDetailsDialog({ event, open, onOpenChange }: EventDetailsDi
             <div className="mb-2">
                 <Badge variant="secondary" className="bg-purple-100 text-purple-700">{event.category}</Badge>
             </div>
-            <h3 className="text-2xl font-bold mb-2">{event.title}</h3>
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold mb-2 text-left">{event.title}</DialogTitle>
+            </DialogHeader>
             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                 <div className='flex items-center gap-2'>
                     <Calendar className="h-4 w-4 flex-shrink-0" />
