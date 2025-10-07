@@ -1,11 +1,8 @@
-import type {Metadata} from 'next';
+'use client';
+
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
-
-export const metadata: Metadata = {
-  title: 'TuneWave',
-  description: 'Discover Your Next Favorite Show',
-};
+import { AppProvider } from '@/context/app-provider';
 
 export default function RootLayout({
   children,
@@ -15,13 +12,16 @@ export default function RootLayout({
   return (
     <html lang="en" className="!scroll-smooth dark">
       <head>
+        <title>TuneWave</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
       </head>
       <body className="font-body antialiased bg-background text-foreground">
-        {children}
-        <Toaster />
+        <AppProvider>
+          {children}
+          <Toaster />
+        </AppProvider>
       </body>
     </html>
   );

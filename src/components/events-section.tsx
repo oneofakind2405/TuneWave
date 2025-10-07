@@ -1,21 +1,22 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { events as initialEvents, type Event } from '@/lib/events-data';
+import { type Event } from '@/lib/events-data';
 import { EventCard } from './event-card';
 import { Button } from './ui/button';
-import { Disc3, Mic, Music, PlusCircle } from 'lucide-react';
+import { Disc3, Mic, Music } from 'lucide-react';
 import { GuitarIcon } from './icons/guitar';
 import { EventDetailsDialog } from './event-details-dialog';
 import { EditEventForm } from './edit-event-form';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
-import { User } from '@/lib/users';
 import { SignInForm } from './sign-in-form';
 import { users } from '@/lib/users';
 import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
+import { useAppContext } from '@/context/app-provider';
+
 
 const categories = [
   { name: 'All', icon: Music },
@@ -26,13 +27,16 @@ const categories = [
 
 type Category = (typeof categories)[number]['name'];
 
-interface EventsSectionProps {
-  user: User | null;
-  onSetUser: (user: User | null) => void;
-}
 
-export function EventsSection({ user, onSetUser }: EventsSectionProps) {
-  const [events, setEvents] = useState(initialEvents);
+export function EventsSection() {
+  const { 
+    user, 
+    setUser, 
+    events, 
+    setEvents, 
+    attendingEventIds, 
+    setAttendingEventIds 
+  } = useAppContext();
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -43,7 +47,6 @@ export function EventsSection({ user, onSetUser }: EventsSectionProps) {
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
-  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set(['3', '5']));
 
 
   const handleSelectEvent = (event: Event) => {
@@ -103,7 +106,7 @@ export function EventsSection({ user, onSetUser }: EventsSectionProps) {
   };
 
   const handleSignInSuccess = () => {
-    onSetUser(users[0]);
+    setUser(users[0]);
     setIsSignInOpen(false);
     router.push('/profile');
   };

@@ -13,7 +13,8 @@ import Image from 'next/image';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
-import { users, User } from '@/lib/users';
+import { useAppContext } from '@/context/app-provider';
+import { useRouter } from 'next/navigation';
 
 function ProfileEventCard({
   event,
@@ -92,20 +93,21 @@ function ProfileEventCard({
 
 
 export default function ProfilePage() {
-  const [events, setEvents] = useState(initialEvents);
+  const { user, events, setEvents, attendingEventIds } = useAppContext();
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set(['3', '5']));
+  const router = useRouter();
 
-  // This should come from auth state
-  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    // Mock user login
-    setUser(users[0]);
-  }, []);
+    if (user === undefined) return; // Still loading
+    if (user === null) {
+      router.push('/');
+    }
+  }, [user, router]);
+
 
   const handleEdit = (event: Event) => {
     setSelectedEvent(event);
@@ -146,10 +148,9 @@ export default function ProfilePage() {
   const createdEvents = user ? events.filter((event) => event.creatorId === user.id) : [];
 
   if (!user) {
-    // Or a loading spinner
     return (
         <div className="flex min-h-screen flex-col">
-            <Header user={null} onSetUser={() => {}} />
+            <Header />
             <div className="flex-1 flex items-center justify-center">
                 <p>Loading profile...</p>
             </div>
@@ -160,7 +161,7 @@ export default function ProfilePage() {
   return (
     <>
       <div className="flex min-h-screen flex-col">
-        <Header user={user} onSetUser={setUser} />
+        <Header />
         <main className="flex-1 py-12">
           <div className="container max-w-5xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">

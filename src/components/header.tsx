@@ -19,14 +19,12 @@ import { useRouter } from 'next/navigation';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/events-data';
-import { User, users } from '@/lib/users';
+import { users } from '@/lib/users';
+import { useAppContext } from '@/context/app-provider';
 
-interface HeaderProps {
-    user: User | null;
-    onSetUser: (user: User | null) => void;
-}
 
-export function Header({ user, onSetUser }: HeaderProps) {
+export function Header() {
+  const { user, setUser } = useAppContext();
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -34,19 +32,17 @@ export function Header({ user, onSetUser }: HeaderProps) {
   const { toast } = useToast();
 
   const handleSignInSuccess = () => {
-    // In a real app, this would be the result of your auth flow
-    onSetUser(users[0]);
+    setUser(users[0]);
     setIsSignInOpen(false);
     router.push('/profile');
   };
 
   const handleSignOut = () => {
-    onSetUser(null);
+    setUser(null);
     router.push('/');
   };
 
   const handleSignUpSuccess = () => {
-    // For now, just switch to sign in
     setIsSignUpOpen(false);
     setIsSignInOpen(true);
   };

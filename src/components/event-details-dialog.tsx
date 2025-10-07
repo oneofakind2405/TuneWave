@@ -23,7 +23,7 @@ interface EventDetailsDialogProps {
   onEdit: () => void;
   onDelete: () => void;
   isCreator: boolean;
-  user: UserType | null;
+  user: UserType | null | undefined;
   onSignInClick: () => void;
   isAttending: boolean;
   onToggleAttend: () => void;
@@ -85,7 +85,7 @@ export function EventDetailsDialog({ event, open, onOpenChange, onEdit, onDelete
             <Separator className="my-4" />
 
             <div className="flex flex-col sm:flex-row gap-2">
-              {!user ? (
+              {user === undefined ? null : !user ? (
                 <Button onClick={onSignInClick} className="w-full">
                   <UserPlus className="mr-2 h-4 w-4" /> Sign in to Attend
                 </Button>
