@@ -2,124 +2,90 @@
  * @fileoverview Firestore Security Rules for the Music Events App.
  *
  * Core Philosophy:
- * This ruleset enforces a user-ownership model for user profiles and creator-ownership for events. Users can only read and modify their own profile data.
- * Events can be created by any authenticated user, but only the creator can update or delete them.
- * Attending subcollections are used to manage event attendees, with read and write access granted to event attendees.
+ * This ruleset prioritizes user-owned data and public readability while restricting unauthorized modifications.
+ * It implements a strict separation of concerns, ensuring that only the owner can create, update, or delete their respective resources, while allowing public read access to events.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile information.  The `userId` in the path must match the `id` field in the document.
- * - /events/{eventId}: Stores event documents.  Events have a `creatorId` field indicating the user who created the event.
- * - /events/{eventId}/attendees/{userId}: Subcollection to track attendees for each event. Document ID is the user ID.
+ * - /users/{userId}: Stores individual user profiles. Only the authenticated user can read/write their own profile.
+ * - /events/{eventId}: Stores event details. Any user can read event details, but only the creator can modify them.
+ * - /events/{eventId}/attendees/{userId}: Tracks event attendees.
  *
  * Key Security Decisions:
- * - Users can only list their own attending events.
- * - Public read access is enabled for events, but writes are restricted to the creator.
+ * - User listing is disallowed to protect privacy and prevent enumeration attacks.
+ * - Event data is publicly readable to promote discoverability. However, writes are restricted to the event creator.
+ * - The rules explicitly deny write access where it is not explicitly granted.
+ *
+ * Denormalization for Authorization:
+ * - The `Event` entity includes a `creatorId` field, enabling fast ownership checks without additional `get()` calls.
+ *   This is crucial for efficient and secure `update` and `delete` operations.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Allows users to read and write their own user profile data.
+     * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (get, update, delete) User with ID 'user123' can read/write data at /users/user123.
-     * @allow (create) User with ID 'user123' can create a document at /users/user123 if the document's id matches their user ID.
-     * @deny (get, update, delete) User with ID 'user456' cannot read/write data at /users/user123.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) If the user's ID matches the requested document ID.
+     * @allow (get, update, delete) If the user is the owner of the document.
+     * @deny (list) Listing users is not permitted.
+     * @deny (create, update, delete) If the user is not the owner of the document.
+     * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-      allow get: if isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == request.auth.uid;
-      allow update: if isExistingOwner(userId) && request.resource.data.id == request.auth.uid;
-      allow delete: if isExistingOwner(userId);
-    }
-
-    /**
-     * @description Allows anyone to read events, but only the creator can modify or delete them.
-     * @path /events/{eventId}
-     * @allow (get, list) Any user can read any event.
-     * @allow (create) User with ID 'user123' can create an event with creatorId 'user123'.
-     * @deny (update, delete) User with ID 'user456' cannot update/delete an event created by 'user123'.
-     * @principle Allows public reads with owner-only writes.
-     */
-    match /events/{eventId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner() {
-        return isSignedIn() && request.auth.uid == resource.data.creatorId;
-      }
-
-      function isExistingOwner() {
-        return isOwner();
-      }
-      allow get: if true;
-      allow list: if true;
-      allow create: if isSignedIn();
-      allow update: if isExistingOwner() && request.resource.data.creatorId == request.auth.uid;
-      allow delete: if isExistingOwner();
-    }
-
-    /**
-     * @description Allows users to read and write their own attendance records for events they are attending.
-     * @path /events/{eventId}/attendees/{userId}
-     * @allow (get, create, update, delete) User with ID 'user123' can read/write their attendance record at /events/{eventId}/attendees/user123.
-     * @deny (get, create, update, delete) User with ID 'user456' cannot read/write attendance record at /events/{eventId}/attendees/user123.
-     * @principle Enforces document ownership for attendance records within events.
-     */
-    match /events/{eventId}/attendees/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      function isExistingOwner(userId) {
-        return isOwner(userId) && resource.data != null;
-      }
-      allow get: if isOwner(userId);
+      // Only signed-in users can attempt any operations
+      allow get: if isSignedIn() && isOwner(userId);
       allow list: if false;
       allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isExistingOwner(userId);
-      allow delete: if isExistingOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
     }
-    
-     /**
-      * @description Allows users to list events they are attending.
-      * @path /users/{userId}/attending
-      * @allow (list) User with ID 'user123' can list events they are attending.
-      * @deny (list) User with ID 'user456' cannot list events that 'user123' is attending.
-      * @principle Enforces document ownership for listing events within user profile.
-      */
-     match /users/{userId}/attending/{eventId} {
-        function isSignedIn() {
-          return request.auth != null;
-        }
-  
-        function isOwner(userId) {
-          return request.auth.uid == userId;
-        }
-        
-        allow get: if false;
-        allow list: if isOwner(userId);
-        allow create: if false;
-        allow update: if false;
-        allow delete: if false;
-     }
+
+    /**
+     * @description Controls access to event documents.
+     * @path /events/{eventId}
+     * @allow (get, list) Events are publicly readable.
+     * @allow (create) Only signed-in users can create events. The 'creatorId' must match the user's ID.
+     * @allow (update, delete) Only the event creator can modify or delete events.
+     * @deny (create) If the 'creatorId' does not match the user's ID.
+     * @deny (update, delete) If the user is not the owner of the document.
+     * @principle Allows public reads, but restricts writes to the event creator.
+     */
+    match /events/{eventId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
+      allow update: if isSignedIn() && isExistingOwner(resource.data.creatorId);
+      allow delete: if isSignedIn() && isExistingOwner(resource.data.creatorId);
+    }
+
+    /**
+     * @description Controls access to event attendees subcollection.
+     * @path /events/{eventId}/attendees/{userId}
+     * @allow (create) Any signed-in user can join an event (create an attendee document). The 'userId' must match the authenticated user's ID.
+     * @allow (get) Any signed-in user can read attendance information if they are the attendee.
+     * @allow (list) No listing attendance information outside user's scope
+     * @allow (update, delete) Only the user (attendee) can update/delete their attendance record.
+     * @deny (create) If the userId does not match the authenticated user's ID.
+     * @principle Enforces that only the user can manage their own attendance record.
+     */
+    match /events/{eventId}/attendees/{userId} {
+      allow get: if isSignedIn() && isOwner(userId);
+      allow list: if false;
+      allow create: if isSignedIn() && isOwner(userId);
+      allow update: if isSignedIn() && isExistingOwner(userId);
+      allow delete: if isSignedIn() && isExistingOwner(userId);
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isExistingOwner(userId) {
+      return isSignedIn() && isOwner(userId) && resource != null;
+    }
   }
 }
