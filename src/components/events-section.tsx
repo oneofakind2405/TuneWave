@@ -145,37 +145,30 @@ export function EventsSection() {
   const handleToggleAttend = async () => {
     if (!user || !selectedEvent || !firestore) return;
 
-    const attendingRef = doc(firestore, 'users', user.uid, 'attending', selectedEvent.id);
     const attendeeRef = doc(firestore, 'events', selectedEvent.id, 'attendees', user.uid);
 
     try {
-      if (attendingEventIds.has(selectedEvent.id)) {
-        // Leave event
-        await runTransaction(firestore, async (transaction) => {
-          transaction.delete(attendingRef);
-          transaction.delete(attendeeRef);
-        });
-        setAttendingEventIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(selectedEvent.id);
-          return newSet;
-        });
-        toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
-      } else {
-        // Join event
-        await runTransaction(firestore, async (transaction) => {
-          transaction.set(attendingRef, { eventId: selectedEvent.id, joinedAt: serverTimestamp() });
-          transaction.set(attendeeRef, { userId: user.uid, joinedAt: serverTimestamp() });
-        });
-        setAttendingEventIds(prev => {
-          const newSet = new Set(prev);
-          newSet.add(selectedEvent.id);
-          return newSet;
-        });
-        toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
-      }
+        if (attendingEventIds.has(selectedEvent.id)) {
+            // Leave event
+            await deleteDoc(attendeeRef);
+            setAttendingEventIds(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(selectedEvent.id);
+                return newSet;
+            });
+            toast({ title: "No Longer Attending", description: `You have left the event: ${selectedEvent.title}` });
+        } else {
+            // Join event
+            await setDoc(attendeeRef, { joinedAt: serverTimestamp() });
+            setAttendingEventIds(prev => {
+                const newSet = new Set(prev);
+                newSet.add(selectedEvent.id);
+                return newSet;
+            });
+            toast({ title: "You're In!", description: `You are now attending ${selectedEvent.title}` });
+        }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+        toast({ variant: 'destructive', title: "Update Failed", description: error.message });
     }
   };
 
