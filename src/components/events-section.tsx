@@ -11,6 +11,7 @@ import { EditEventForm } from './edit-event-form';
 import { DeleteConfirmationDialog } from './delete-confirmation-dialog';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
+import { User } from '@/lib/users';
 
 const categories = [
   { name: 'All', icon: Music },
@@ -21,10 +22,11 @@ const categories = [
 
 type Category = (typeof categories)[number]['name'];
 
-// Mock user ID - replace with actual user from auth state
-const currentUserId = 'user-liam';
+interface EventsSectionProps {
+  user: User | null;
+}
 
-export function EventsSection() {
+export function EventsSection({ user }: EventsSectionProps) {
   const [events, setEvents] = useState(initialEvents);
   const [activeCategory, setActiveCategory] = useState<Category>('All');
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -41,7 +43,7 @@ export function EventsSection() {
   
   const handleEdit = () => {
     if (!selectedEvent) return;
-    if (selectedEvent.creatorId !== currentUserId) {
+    if (!user || selectedEvent.creatorId !== user.id) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only edit your own events." });
         return;
     }
@@ -51,7 +53,7 @@ export function EventsSection() {
 
   const handleDelete = () => {
     if (!selectedEvent) return;
-    if (selectedEvent.creatorId !== currentUserId) {
+    if (!user || selectedEvent.creatorId !== user.id) {
         toast({ variant: 'destructive', title: "Not Authorized", description: "You can only delete your own events." });
         return;
     }
@@ -76,10 +78,14 @@ export function EventsSection() {
   };
 
   const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
+    if (!user) {
+      toast({ variant: 'destructive', title: "Not Signed In", description: "You must be signed in to create an event." });
+      return;
+    }
     const newEvent: Event = {
       ...newEventData,
       id: Date.now().toString(),
-      creatorId: currentUserId,
+      creatorId: user.id,
     };
     setEvents([newEvent, ...events]);
     toast({ title: "Event Created", description: "Your new event has been successfully created." });
@@ -150,7 +156,7 @@ export function EventsSection() {
         onOpenChange={(open) => { if (!open) closeAllDialogs() }}
         onEdit={handleEdit}
         onDelete={handleDelete}
-        isCreator={selectedEvent?.creatorId === currentUserId}
+        isCreator={!!user && selectedEvent?.creatorId === user.id}
       />
 
       <EditEventForm 

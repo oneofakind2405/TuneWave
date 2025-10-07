@@ -13,6 +13,7 @@ import Image from 'next/image';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { EditEventForm } from '@/components/edit-event-form';
 import { CreateEventForm } from '@/components/create-event-form';
+import { users } from '@/lib/users';
 
 function ProfileEventCard({
   event,
@@ -97,13 +98,7 @@ export default function ProfilePage() {
   const [isCreating, setIsCreating] = useState(false);
 
   // This should come from auth state
-  const user = {
-    id: 'user-liam',
-    name: 'Liam Ottley',
-    email: 'liamottley@gmail.com',
-    memberSince: '2025-07-01',
-    initials: 'LO',
-  };
+  const [user, setUser] = useState(users[0]);
 
   const handleEdit = (event: Event) => {
     setSelectedEvent(event);
@@ -130,6 +125,7 @@ export default function ProfilePage() {
   };
 
   const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
+    if (!user) return;
     const newEvent: Event = {
       ...newEventData,
       id: Date.now().toString(),
@@ -141,12 +137,24 @@ export default function ProfilePage() {
 
 
   const attendingEvents = events.slice(3, 5); // Mock data
-  const createdEvents = events.filter((event) => event.creatorId === user.id);
+  const createdEvents = user ? events.filter((event) => event.creatorId === user.id) : [];
+
+  if (!user) {
+    // Or a loading spinner
+    return (
+        <div className="flex min-h-screen flex-col">
+            <Header user={null} onSetUser={() => {}} />
+            <div className="flex-1 flex items-center justify-center">
+                <p>Please sign in to view your profile.</p>
+            </div>
+        </div>
+    )
+  }
 
   return (
     <>
       <div className="flex min-h-screen flex-col">
-        <Header />
+        <Header user={user} onSetUser={setUser} />
         <main className="flex-1 py-12">
           <div className="container max-w-5xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6 mb-8">

@@ -19,29 +19,29 @@ import { useRouter } from 'next/navigation';
 import { CreateEventForm } from './create-event-form';
 import { useToast } from '@/hooks/use-toast';
 import { Event } from '@/lib/events-data';
+import { User, users } from '@/lib/users';
 
-export function Header() {
+interface HeaderProps {
+    user: User | null;
+    onSetUser: (user: User | null) => void;
+}
+
+export function Header({ user, onSetUser }: HeaderProps) {
   const [isSignInOpen, setIsSignInOpen] = useState(false);
   const [isSignUpOpen, setIsSignUpOpen] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  // We'll use a mock user for now. In a real app, you'd get this from your auth state.
-  const [user, setUser] = useState<{
-    name: string;
-    email: string;
-    initials: string;
-  } | null>(null);
   const router = useRouter();
   const { toast } = useToast();
 
   const handleSignInSuccess = () => {
     // In a real app, this would be the result of your auth flow
-    setUser({ name: 'Liam Ottley', email: 'liamottley@gmail.com', initials: 'LO' });
+    onSetUser(users[0]);
     setIsSignInOpen(false);
     router.push('/profile');
   };
 
   const handleSignOut = () => {
-    setUser(null);
+    onSetUser(null);
     router.push('/');
   };
 
