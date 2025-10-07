@@ -217,8 +217,9 @@ export default function ProfilePage() {
     toast({ title: 'Event created' });
     setIsCreating(false);
   };
-
-  const isLoading = isAppLoading || isUserLoading || isCreatedEventsLoading || isAttendingEventsLoading;
+  
+  const isAttendingHookLoading = attendingEventIds.size > 0 && isAttendingEventsLoading;
+  const isLoading = isAppLoading || isUserLoading || isCreatedEventsLoading || isAttendingHookLoading;
 
   if (isLoading || !userProfile) {
     return (
