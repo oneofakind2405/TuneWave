@@ -15,7 +15,7 @@ import { SignInForm } from './sign-in-form';
 import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
-import { useFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { doc, serverTimestamp, increment, collection } from 'firebase/firestore';
 import { Card } from './ui/card';
 
@@ -48,8 +48,8 @@ export function EventsSection() {
   const handleSelectEvent = (event: Event) => {
     setSelectedEvent(event);
     setIsDetailsOpen(true);
-    // Increment view count
-    if (firestore && event.id) {
+    // Increment view count only if a user is logged in
+    if (user && firestore && event.id) {
       const eventRef = doc(firestore, 'events', event.id);
       updateDocumentNonBlocking(eventRef, {
         views: increment(1)
@@ -87,7 +87,7 @@ export function EventsSection() {
   };
 
   const handleSave = (updatedEvent: Event) => {
-    if (firestore) {
+    if (firestore && updatedEvent.id) {
       const eventRef = doc(firestore, 'events', updatedEvent.id);
       updateDocumentNonBlocking(eventRef, { ...updatedEvent });
       toast({ title: "Event Updated", description: "Your event has been successfully updated." });
