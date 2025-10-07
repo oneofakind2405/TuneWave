@@ -1,0 +1,70 @@
+/**
+ * @fileoverview Firestore Security Rules for TuneWave application.
+ *
+ * Core Philosophy:
+ * This ruleset provides public read access to all collections while restricting write access.
+ * Write access to each top-level collection is only allowed if the proper preconditions are met
+ * in the request.
+ *
+ * Data Structure:
+ * - /categories/{categoryId}: Stores music event categories.
+ * - /events/{eventId}: Stores music events.
+ * - /blog_posts/{blogPostId}: Stores blog posts about music or artists.
+ *
+ * Key Security Decisions:
+ * - Public read access for all collections is enabled.
+ * - There is no concept of user ownership. Write access is restricted by preconditions.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Allows public read access to categories and restricts write access to ensure that only valid category data is created.
+     * @path /categories/{categoryId}
+     * @allow (get, list)
+     * @allow (create) if request.resource.data.id == categoryId
+     * @deny (update)
+     * @deny (delete)
+     * @principle Public read, id-based validation for create.
+     */
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow create: if request.resource.data.id == categoryId;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allows public read access to events and restricts write access to ensure that only valid event data is created.
+     * @path /events/{eventId}
+     * @allow (get, list)
+     * @allow (create) if request.resource.data.id == eventId
+     * @deny (update)
+     * @deny (delete)
+     * @principle Public read, id-based validation for create.
+     */
+    match /events/{eventId} {
+      allow get, list: if true;
+      allow create: if request.resource.data.id == eventId;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Allows public read access to blog posts and restricts write access to ensure that only valid blog post data is created.
+     * @path /blog_posts/{blogPostId}
+     * @allow (get, list)
+     * @allow (create) if request.resource.data.id == blogPostId
+     * @deny (update)
+     * @deny (delete)
+     * @principle Public read, id-based validation for create.
+     */
+    match /blog_posts/{blogPostId} {
+      allow get, list: if true;
+      allow create: if request.resource.data.id == blogPostId;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
