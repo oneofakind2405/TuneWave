@@ -72,7 +72,7 @@ export function SignInForm({ open, onOpenChange, onSignedIn }: SignInFormProps) 
       await sendPasswordResetEmail(auth, email);
       toast({
         title: 'Password Reset Email Sent',
-        description: `If an account exists for ${email}, a password reset link has been sent to it.`,
+        description: `If an account exists for ${email}, a password reset link has been sent. Please check your inbox and spam folder.`,
       });
     } catch (error: any) {
       console.error('Password reset error:', error);
