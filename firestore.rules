@@ -1,23 +1,32 @@
 /**
- * @fileoverview Firestore Security Rules for the Music Events App.
+ * @fileoverview Firestore Security Rules for the application.
  *
  * Core Philosophy:
- * This ruleset prioritizes user-owned data and public readability while restricting unauthorized modifications.
- * It implements a strict separation of concerns, ensuring that only the owner can create, update, or delete their respective resources, while allowing public read access to events.
+ * This ruleset enforces a mixed security model. User profiles are private and
+ * only accessible to the owner. Events are publicly readable, but only the
+ * creator can modify or delete them. Event attendees are managed on an
+ * event-by-event basis and must be created and deleted by the event creator.
  *
  * Data Structure:
- * - /users/{userId}: Stores individual user profiles. Only the authenticated user can read/write their own profile.
- * - /events/{eventId}: Stores event details. Any user can read event details, but only the creator can modify them.
- * - /events/{eventId}/attendees/{userId}: Tracks event attendees.
+ * - /users/{userId}: Stores individual user profiles.
+ * - /events/{eventId}: Stores event information.
+ * - /events/{eventId}/attendees/{userId}: Stores a record of who is attending an event
  *
  * Key Security Decisions:
- * - User listing is disallowed to protect privacy and prevent enumeration attacks.
- * - Event data is publicly readable to promote discoverability. However, writes are restricted to the event creator.
- * - The rules explicitly deny write access where it is not explicitly granted.
+ * - Users can only read and write their own profile data.
+ * - Anyone can read events, enabling public discovery.
+ * - Only the event creator can modify or delete events.
+ * - Anyone can list events.
+ * - Only the creator can manage attendees of an event.
  *
  * Denormalization for Authorization:
- * - The `Event` entity includes a `creatorId` field, enabling fast ownership checks without additional `get()` calls.
- *   This is crucial for efficient and secure `update` and `delete` operations.
+ * The 'Event' entity includes a 'creatorId' field. This field is essential
+ * for authorizing updates and deletes, allowing rules to quickly verify
+ * ownership without additional reads.
+ *
+ * Structural Segregation:
+ * The application uses top-level collections for both public (events) and private
+ * (users) data.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -26,66 +35,64 @@ service cloud.firestore {
     /**
      * @description Controls access to user profile documents.
      * @path /users/{userId}
-     * @allow (create) If the user's ID matches the requested document ID.
-     * @allow (get, update, delete) If the user is the owner of the document.
-     * @deny (list) Listing users is not permitted.
-     * @deny (create, update, delete) If the user is not the owner of the document.
+     * @allow (get, list, create, update): If the authenticated user's ID matches the userId.
+     * @allow (delete): Never allowed. Users cannot delete their accounts via client-side rules.
+     * @deny (get, list, create, update): If the authenticated user's ID does not match the userId.
      * @principle Enforces document ownership for all operations.
      */
     match /users/{userId} {
-      // Only signed-in users can attempt any operations
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId);
+      allow update: if isOwner(userId);
+      allow delete: if false;
     }
 
     /**
      * @description Controls access to event documents.
      * @path /events/{eventId}
-     * @allow (get, list) Events are publicly readable.
-     * @allow (create) Only signed-in users can create events. The 'creatorId' must match the user's ID.
-     * @allow (update, delete) Only the event creator can modify or delete events.
-     * @deny (create) If the 'creatorId' does not match the user's ID.
-     * @deny (update, delete) If the user is not the owner of the document.
-     * @principle Allows public reads, but restricts writes to the event creator.
+     * @allow (get, list): Allow anyone to get or list events.
+     * @allow (create): Allow anyone to create an event, but the creatorId must match the authenticated user's ID.
+     * @allow (update, delete): Only the event creator can update or delete an event.
+     * @deny (create): If the creatorId does not match the authenticated user's ID.
+     * @principle Allows public read access with owner-only writes.
      */
     match /events/{eventId} {
       allow get, list: if true;
-      allow create: if isSignedIn() && request.resource.data.creatorId == request.auth.uid;
-      allow update: if isSignedIn() && isExistingOwner(resource.data.creatorId);
-      allow delete: if isSignedIn() && isExistingOwner(resource.data.creatorId);
+      allow create: if request.resource.data.creatorId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.creatorId);
+      allow delete: if isExistingOwner(resource.data.creatorId);
     }
 
     /**
-     * @description Controls access to event attendees subcollection.
+     * @description Controls access to attendee documents for an event.
      * @path /events/{eventId}/attendees/{userId}
-     * @allow (create) Any signed-in user can join an event (create an attendee document). The 'userId' must match the authenticated user's ID.
-     * @allow (get) Any signed-in user can read attendance information if they are the attendee.
-     * @allow (list) No listing attendance information outside user's scope
-     * @allow (update, delete) Only the user (attendee) can update/delete their attendance record.
-     * @deny (create) If the userId does not match the authenticated user's ID.
-     * @principle Enforces that only the user can manage their own attendance record.
+     * @allow (get, list): Never allowed.
+     * @allow (create, update, delete): Only the event creator can manage attendees.
+     * @deny (create, update, delete): If the user is not the event creator.
+     * @principle Restricts attendee management to the event creator.
      */
     match /events/{eventId}/attendees/{userId} {
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if false;
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isExistingOwner(userId);
-      allow delete: if isSignedIn() && isExistingOwner(userId);
+        allow get, list: if false;
+        allow create: if isEventCreator(eventId);
+        allow update: if false;
+        allow delete: if isEventCreator(eventId);
     }
 
+    // Helper functions
     function isSignedIn() {
       return request.auth != null;
     }
 
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return isSignedIn() && isOwner(userId) && resource != null;
+    function isExistingOwner(ownerId) {
+      return isSignedIn() && request.auth.uid == ownerId && resource != null;
+    }
+
+    function isEventCreator(eventId) {
+        return isSignedIn() && get(/databases/$(database)/documents/events/$(eventId)).data.creatorId == request.auth.uid;
     }
   }
 }
