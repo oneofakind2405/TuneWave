@@ -11,7 +11,7 @@ export type Event = {
   category: 'Rock' | 'Pop' | 'Electronic';
   imageUrl: string;
   imageHint: string;
-  views?: number;
+  viewCount?: number;
   createdAt: Timestamp;
 };
 

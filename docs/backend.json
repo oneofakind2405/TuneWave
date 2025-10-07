@@ -78,7 +78,7 @@
         "imageHint": {
           "type": "string"
         },
-        "views": {
+        "viewCount": {
           "type": "number",
           "description": "Number of times the event has been viewed."
         }
@@ -94,7 +94,7 @@
         "category",
         "imageUrl",
         "imageHint",
-        "views"
+        "viewCount"
       ]
     },
     "Attendee": {
@@ -109,6 +109,23 @@
             }
         },
         "required": ["joinedAt"]
+    },
+    "View": {
+      "title": "View",
+      "type": "object",
+      "description": "Represents a single view of an event. The document ID can be the user's ID for unique views or an auto-generated ID for total views.",
+      "properties": {
+        "viewedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the event was viewed."
+        },
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user who viewed the event (if logged in)."
+        }
+      },
+      "required": ["viewedAt"]
     }
   },
   "auth": {
@@ -144,6 +161,16 @@
                 "$ref": "#/entities/Attendee"
             },
             "description": "Subcollection to track attendees for each event. Document ID is the user ID."
+        }
+      },
+      {
+        "path": "/events/{eventId}/views/{viewId}",
+        "definition": {
+          "entityName": "View",
+          "schema": {
+            "$ref": "#/entities/View"
+          },
+          "description": "Subcollection to track views for each event."
         }
       }
     ]

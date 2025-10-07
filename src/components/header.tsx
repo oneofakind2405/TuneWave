@@ -22,7 +22,7 @@ import { Event } from '@/lib/events-data';
 import { useAppContext } from '@/context/app-provider';
 import { useFirebase, addDocumentNonBlocking } from '@/firebase';
 import { signOut } from 'firebase/auth';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, doc } from 'firebase/firestore';
 
 export function Header() {
   const { user, setUser } = useAppContext();
@@ -50,13 +50,15 @@ export function Header() {
     setIsSignInOpen(true);
   };
   
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt' | 'viewCount'>) => {
     if (!user || !firestore) return;
 
-    addDocumentNonBlocking(collection(firestore, 'events'), {
+    const newDocRef = doc(collection(firestore, 'events'));
+    addDocumentNonBlocking(newDocRef, {
       ...newEventData,
+      id: newDocRef.id,
       creatorId: user.uid,
-      views: 0,
+      viewCount: 0,
       createdAt: serverTimestamp(),
     });
     toast({ title: "Event Created", description: "Your new event has been successfully created." });

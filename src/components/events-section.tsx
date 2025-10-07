@@ -15,7 +15,7 @@ import { SignInForm } from './sign-in-form';
 import { SignUpForm } from './sign-up-form';
 import { useRouter } from 'next/navigation';
 import { useAppContext } from '@/context/app-provider';
-import { useFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { doc, serverTimestamp, increment, collection } from 'firebase/firestore';
 import { Card } from './ui/card';
 
@@ -48,11 +48,12 @@ export function EventsSection() {
   const handleSelectEvent = (event: Event) => {
     setSelectedEvent(event);
     setIsDetailsOpen(true);
-    // Increment view count only if a user is logged in
+    // Add a view document to the views subcollection
     if (user && firestore && event.id) {
-      const eventRef = doc(firestore, 'events', event.id);
-      updateDocumentNonBlocking(eventRef, {
-        views: increment(1)
+      const viewRef = collection(firestore, 'events', event.id, 'views');
+      addDocumentNonBlocking(viewRef, {
+        userId: user.uid,
+        viewedAt: serverTimestamp(),
       });
     }
   };
@@ -106,7 +107,7 @@ export function EventsSection() {
       ...newEventData,
       id: newDocRef.id,
       creatorId: user.uid,
-      views: 0,
+      viewCount: 0,
       createdAt: serverTimestamp(),
     }, {});
     toast({ title: "Event Created", description: "Your new event has been successfully created." });

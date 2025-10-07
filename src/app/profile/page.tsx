@@ -27,12 +27,14 @@ function ProfileEventCard({
   onEdit,
   onDelete,
   attendeeCount,
+  viewCount,
 }: {
   event: Event;
   isCreator: boolean;
   onEdit: () => void;
   onDelete: () => void;
   attendeeCount: number;
+  viewCount: number;
 }) {
   return (
     <Card className="bg-secondary border-none">
@@ -88,7 +90,7 @@ function ProfileEventCard({
                 <div className="flex items-center gap-2">
                   <Eye className="h-4 w-4" />
                   <span>
-                    {event.views || 0} {event.views === 1 ? 'View' : 'Views'}
+                    {viewCount || 0} {viewCount === 1 ? 'View' : 'Views'}
                   </span>
                 </div>
               )}
@@ -140,8 +142,9 @@ export default function ProfilePage() {
   }, [firestore, attendingEventIds]);
   const { data: attendingEvents, isLoading: isAttendingEventsLoading } = useCollection<Event>(attendingEventsQuery);
 
-  // Fetch attendee counts for all relevant events
+  // Fetch attendee and view counts for all relevant events
   const [attendeeCounts, setAttendeeCounts] = useState<Record<string, number>>({});
+  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const allEvents = [...(createdEvents || []), ...(attendingEvents || [])];
@@ -149,20 +152,27 @@ export default function ProfilePage() {
 
     if (uniqueEventIds.length > 0 && firestore) {
       const fetchCounts = async () => {
-        const counts: Record<string, number> = {};
+        const newAttendeeCounts: Record<string, number> = {};
+        const newViewCounts: Record<string, number> = {};
+
         for (const eventId of uniqueEventIds) {
           try {
             const attendeesCol = collection(firestore, 'events', eventId, 'attendees');
-            const snapshot = await getDocs(attendeesCol);
-            counts[eventId] = snapshot.size;
+            const attendeeSnapshot = await getDocs(attendeesCol);
+            newAttendeeCounts[eventId] = attendeeSnapshot.size;
+
+            const viewsCol = collection(firestore, 'events', eventId, 'views');
+            const viewSnapshot = await getDocs(viewsCol);
+            newViewCounts[eventId] = viewSnapshot.size;
+
           } catch (error) {
-            // This might fail if rules don't allow listing attendees for events not created by user.
-            // We can handle this gracefully.
-            console.warn(`Could not fetch attendee count for event ${eventId}:`, error);
-            counts[eventId] = 0; // Default to 0 if fetching fails
+            console.warn(`Could not fetch counts for event ${eventId}:`, error);
+            newAttendeeCounts[eventId] = 0;
+            newViewCounts[eventId] = 0;
           }
         }
-        setAttendeeCounts(counts);
+        setAttendeeCounts(newAttendeeCounts);
+        setViewCounts(newViewCounts);
       };
       fetchCounts();
     }
@@ -204,14 +214,14 @@ export default function ProfilePage() {
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt' | 'viewCount'>) => {
     if (!authUser || !firestore) return;
     const newDocRef = doc(collection(firestore, 'events'));
     const newEvent = {
       ...newEventData,
       id: newDocRef.id,
       creatorId: authUser.uid,
-      views: 0,
+      viewCount: 0,
       createdAt: serverTimestamp(),
     };
     setDocumentNonBlocking(newDocRef, newEvent, {});
@@ -275,6 +285,7 @@ export default function ProfilePage() {
                     onEdit={() => {}}
                     onDelete={() => {}}
                     attendeeCount={attendeeCounts[event.id] || 0}
+                    viewCount={viewCounts[event.id] || 0}
                   />
                 ))}
                 {(!attendingEvents || attendingEvents.length === 0) && (
@@ -294,6 +305,7 @@ export default function ProfilePage() {
                     onEdit={() => handleEdit(event)}
                     onDelete={() => handleDelete(event)}
                     attendeeCount={attendeeCounts[event.id] || 0}
+                    viewCount={viewCounts[event.id] || 0}
                   />
                 ))}
                 {(!createdEvents || createdEvents.length === 0) && (

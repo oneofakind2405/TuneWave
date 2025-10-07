@@ -48,7 +48,7 @@ type EventFormValues = z.infer<typeof formSchema>;
 interface CreateEventFormProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreate: (event: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => void;
+  onCreate: (event: Omit<Event, 'id' | 'creatorId' | 'createdAt' | 'viewCount'>) => void;
 }
 
 export function CreateEventForm({
