@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -8,7 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Event } from '@/lib/events-data';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Edit, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
+import { Calendar, Clock, Edit, Eye, MapPin, PlusCircle, Trash2, Users } from 'lucide-react';
 import Image from 'next/image';
 import { DeleteConfirmationDialog } from '@/components/delete-confirmation-dialog';
 import { EditEventForm } from '@/components/edit-event-form';
@@ -72,11 +73,21 @@ function ProfileEventCard({
             </div>
           </div>
           <div className="flex justify-between items-center">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Users className="h-4 w-4" />
-              <span>
-                {attendeeCount} {attendeeCount === 1 ? 'Attendee' : 'Attendees'}
-              </span>
+             <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>
+                  {attendeeCount} {attendeeCount === 1 ? 'Attendee' : 'Attendees'}
+                </span>
+              </div>
+              {isCreator && (
+                <div className="flex items-center gap-2">
+                  <Eye className="h-4 w-4" />
+                  <span>
+                    {event.views} {event.views === 1 ? 'View' : 'Views'}
+                  </span>
+                </div>
+              )}
             </div>
             {isCreator && (
               <div className="flex gap-2">
@@ -137,12 +148,13 @@ export default function ProfilePage() {
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'views'>) => {
     if (!user) return;
     const newEvent: Event = {
       ...newEventData,
       id: Date.now().toString(),
-      creatorId: user.id, 
+      creatorId: user.id,
+      views: 0,
     };
     setEvents([newEvent, ...events]);
     setIsCreating(false);
