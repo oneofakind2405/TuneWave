@@ -105,9 +105,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Create a batch of promises to check attendance for all events
         const attendanceChecks = events.map(async (event) => {
           try {
-            const q = query(collection(firestore, 'events', event.id, 'attendees'), where('__name__', '==', authUser.uid));
-            const snapshot = await getDocs(q);
-            if (!snapshot.empty) {
+            const attendeeDocRef = doc(firestore, 'events', event.id, 'attendees', authUser.uid);
+            // This is not a query, we need to get the doc
+            const attendeeDoc = await getDocs(query(collection(firestore, 'events', event.id, 'attendees'), where('__name__', '==', authUser.uid)));
+
+            if (!attendeeDoc.empty) {
               return event.id;
             }
           } catch (e) {
@@ -124,10 +126,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
         setAttendingEventIds(newAttendingEventIds);
       } else if (!authUser) {
+        // Clear attending events if user logs out
         setAttendingEventIds(new Set());
       }
     };
     
+    // We run this effect when the authenticated user changes, or when the list of events changes.
     fetchAttendingEvents();
   }, [authUser, firestore, events]);
   
