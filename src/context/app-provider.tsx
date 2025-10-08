@@ -4,12 +4,7 @@
 import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction, useEffect, useMemo } from 'react';
 import { Event } from '@/lib/events-data';
 import { useCollection, useFirebase } from '@/firebase';
-import { collection, query, orderBy, getDocs, doc } from 'firebase/firestore';
-
-type Location = {
-  latitude: number;
-  longitude: number;
-};
+import { collection, query, orderBy, getDocs } from 'firebase/firestore';
 
 type AppContextType = {
   user: any | null | undefined;
@@ -19,9 +14,6 @@ type AppContextType = {
   attendingEventIds: Set<string>;
   setAttendingEventIds: Dispatch<SetStateAction<Set<string>>>;
   isLoading: boolean;
-  location: Location | null;
-  locationError: string | null;
-  cityName: string | null;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,10 +22,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { firestore, user: authUser, isUserLoading } = useFirebase();
   const [user, setUser] = useState<any | null | undefined>(undefined);
   const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set());
-  const [location, setLocation] = useState<Location | null>(null);
-  const [locationError, setLocationError] = useState<string | null>(null);
-  const [cityName, setCityName] = useState<string | null>(null);
-
 
   const eventsQuery = useMemo(() => firestore ? query(collection(firestore, 'events'), orderBy('createdAt', 'desc')) : null, [firestore]);
   const { data: events, isLoading: isEventsLoading } = useCollection<Event>(eventsQuery);
@@ -43,61 +31,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setUser(authUser);
     }
   }, [isUserLoading, authUser]);
-
-  useEffect(() => {
-    const fetchCityName = async (lat: number, lon: number) => {
-      try {
-        // Using a free, public reverse geocoding API. No API key required.
-        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
-        if (!response.ok) {
-          throw new Error('Failed to fetch city name');
-        }
-        const data = await response.json();
-        const city = data.address.city || data.address.town || data.address.village;
-        const state = data.address.state;
-        if (city && state) {
-          setCityName(`${city}, ${state}`);
-        } else {
-          setCityName('Location name not found');
-        }
-      } catch (error) {
-        console.warn('Could not fetch city name:', error);
-        setCityName('Could not determine city');
-      }
-    };
-
-    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const newLocation = {
-            latitude: position.coords.latitude,
-            longitude: position.coords.longitude,
-          };
-          setLocation(newLocation);
-          fetchCityName(newLocation.latitude, newLocation.longitude);
-          setLocationError(null);
-        },
-        (error) => {
-          switch (error.code) {
-            case error.PERMISSION_DENIED:
-              setLocationError("Location access denied. You can enable it in your browser settings.");
-              break;
-            case error.POSITION_UNAVAILABLE:
-              setLocationError("Location information is unavailable.");
-              break;
-            case error.TIMEOUT:
-              setLocationError("The request to get user location timed out.");
-              break;
-            default:
-              setLocationError("An unknown error occurred while getting location.");
-              break;
-          }
-        }
-      );
-    } else {
-      setLocationError("Geolocation is not supported by this browser.");
-    }
-  }, []);
 
   useEffect(() => {
     const fetchAttendingEvents = async () => {
@@ -152,9 +85,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       attendingEventIds, 
       setAttendingEventIds,
       isLoading,
-      location,
-      locationError,
-      cityName,
     }}>
       {children}
     </AppContext.Provider>
