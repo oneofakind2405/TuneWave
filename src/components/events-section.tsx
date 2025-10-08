@@ -202,28 +202,32 @@ export function EventsSection() {
     const filtered = activeCategory === 'All'
       ? events
       : events.filter((event) => event.category === activeCategory);
-
+  
     if (!location) {
       return { nearbyEvents: [], allOtherEvents: filtered };
     }
-
-    const sortedByDistance = [...filtered].sort((a, b) => {
+  
+    // Define a threshold for "nearby", e.g., 50km
+    const nearbyThreshold = 50; 
+    const nearby: Event[] = [];
+    const others: Event[] = [];
+  
+    for (const event of filtered) {
+      const distance = getDistance(location.latitude, location.longitude, event.latitude, event.longitude);
+      if (distance < nearbyThreshold) {
+        nearby.push(event);
+      } else {
+        others.push(event);
+      }
+    }
+    
+    // Sort nearby events by distance
+    nearby.sort((a, b) => {
       const distA = getDistance(location.latitude, location.longitude, a.latitude, a.longitude);
       const distB = getDistance(location.latitude, location.longitude, b.latitude, b.longitude);
       return distA - distB;
     });
-
-    // Define a threshold for "nearby", e.g., 50km
-    const nearbyThreshold = 50; 
-    const nearby = sortedByDistance.filter(event => getDistance(location.latitude, location.longitude, event.latitude, event.longitude) < nearbyThreshold);
-    
-    // Create a Set of nearby event IDs for efficient lookup
-    const nearbyIds = new Set(nearby.map(e => e.id));
-
-    // Filter out the nearby events from the main list to get "all other" events
-    const others = events.filter(event => !nearbyIds.has(event.id) && (activeCategory === 'All' || event.category === activeCategory));
-
-
+  
     return { nearbyEvents: nearby, allOtherEvents: others };
   }, [activeCategory, events, location]);
 
@@ -235,6 +239,7 @@ export function EventsSection() {
     setSelectedEvent(null);
   }, []);
 
+  const noEventsFound = !isLoading && nearbyEvents.length === 0 && allOtherEvents.length === 0;
 
   return (
     <>
@@ -267,6 +272,10 @@ export function EventsSection() {
                 <Card key={i} className="h-[450px] animate-pulse bg-secondary"></Card>
               ))}
              </div>
+          ) : noEventsFound ? (
+             <div className="mt-8 text-center text-muted-foreground">
+              <p>No events found for this category. Check back soon!</p>
+            </div>
           ) : (
             <>
               {location && nearbyEvents.length > 0 && (
@@ -289,27 +298,24 @@ export function EventsSection() {
                 </div>
               )}
 
-              <div>
-                <div className="flex items-center gap-3 mb-6">
-                  <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">All Events</h3>
-                </div>
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {allOtherEvents.map((event, index) => (
-                    <div
-                      key={event.id}
-                      className="animate-in fade-in-0 zoom-in-95 duration-500"
-                      style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
-                    >
-                      <EventCard event={event} onClick={() => handleSelectEvent(event)} />
-                    </div>
-                  ))}
-                </div>
-                {allOtherEvents.length === 0 && (!location || nearbyEvents.length === 0) && (
-                   <div className="mt-8 text-center text-muted-foreground">
-                    <p>No events found for this category. Check back soon!</p>
+              {allOtherEvents.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-3 mb-6">
+                    <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">All Events</h3>
                   </div>
-                )}
-              </div>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {allOtherEvents.map((event, index) => (
+                      <div
+                        key={event.id}
+                        className="animate-in fade-in-0 zoom-in-95 duration-500"
+                        style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
+                      >
+                        <EventCard event={event} onClick={() => handleSelectEvent(event)} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>
