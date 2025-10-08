@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
 import { type Event } from '@/lib/events-data';
 import { EventCard } from './event-card';
 import { Button } from './ui/button';
-import { Disc3, Mic, Music, MapPin } from 'lucide-react';
+import { Disc3, Mic, Music, MapPin, Compass } from 'lucide-react';
 import { GuitarIcon } from './icons/guitar';
 import { EventDetailsDialog } from './event-details-dialog';
 import { EditEventForm } from './edit-event-form';
@@ -27,6 +28,20 @@ const categories = [
 ] as const;
 
 type Category = (typeof categories)[number]['name'];
+
+// Haversine formula to calculate distance between two lat/lon points
+function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const R = 6371; // Radius of the Earth in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const distance = R * c; // Distance in km
+  return distance;
+}
 
 function LocationDisplay() {
   const { location, locationError } = useAppContext();
@@ -58,7 +73,7 @@ function LocationDisplay() {
 
 
 export function EventsSection() {
-  const { user, events, attendingEventIds, setAttendingEventIds, isLoading } = useAppContext();
+  const { user, events, attendingEventIds, setAttendingEventIds, isLoading, location } = useAppContext();
   const { firestore } = useFirebase();
 
   const [activeCategory, setActiveCategory] = useState<Category>('All');
@@ -183,12 +198,34 @@ export function EventsSection() {
     }
   };
 
-  const filteredEvents = useMemo(() => {
-    if (activeCategory === 'All') {
-      return events;
+  const { nearbyEvents, allOtherEvents } = useMemo(() => {
+    const filtered = activeCategory === 'All'
+      ? events
+      : events.filter((event) => event.category === activeCategory);
+
+    if (!location) {
+      return { nearbyEvents: [], allOtherEvents: filtered };
     }
-    return events.filter((event) => event.category === activeCategory);
-  }, [activeCategory, events]);
+
+    const sortedByDistance = [...filtered].sort((a, b) => {
+      const distA = getDistance(location.latitude, location.longitude, a.latitude, a.longitude);
+      const distB = getDistance(location.latitude, location.longitude, b.latitude, b.longitude);
+      return distA - distB;
+    });
+
+    // Define a threshold for "nearby", e.g., 50km
+    const nearbyThreshold = 50; 
+    const nearby = sortedByDistance.filter(event => getDistance(location.latitude, location.longitude, event.latitude, event.longitude) < nearbyThreshold);
+    
+    // Create a Set of nearby event IDs for efficient lookup
+    const nearbyIds = new Set(nearby.map(e => e.id));
+
+    // Filter out the nearby events from the main list to get "all other" events
+    const others = events.filter(event => !nearbyIds.has(event.id) && (activeCategory === 'All' || event.category === activeCategory));
+
+
+    return { nearbyEvents: nearby, allOtherEvents: others };
+  }, [activeCategory, events, location]);
 
   const closeAllDialogs = useCallback(() => {
     setIsDetailsOpen(false);
@@ -204,7 +241,7 @@ export function EventsSection() {
       <section id="events" className="scroll-mt-20 py-12 sm:py-16 lg:py-20">
         <div className="container">
           <div className="text-center">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Upcoming Events</h2>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Find Your Next Event</h2>
             <p className="mt-4 text-lg text-muted-foreground">Filter by category to find your perfect night out.</p>
           </div>
 
@@ -223,7 +260,7 @@ export function EventsSection() {
               </Button>
             ))}
           </div>
-
+          
           {isLoading ? (
              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {Array.from({ length: 8 }).map((_, i) => (
@@ -231,22 +268,49 @@ export function EventsSection() {
               ))}
              </div>
           ) : (
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {filteredEvents.map((event, index) => (
-                <div
-                  key={event.id}
-                  className="animate-in fade-in-0 zoom-in-95 duration-500"
-                  style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
-                >
-                  <EventCard event={event} onClick={() => handleSelectEvent(event)} />
+            <>
+              {location && nearbyEvents.length > 0 && (
+                <div className="mb-12">
+                   <div className="flex items-center gap-3 mb-6">
+                    <Compass className="h-7 w-7 text-primary" />
+                    <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">Events Near You</h3>
+                  </div>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                    {nearbyEvents.map((event, index) => (
+                      <div
+                        key={event.id}
+                        className="animate-in fade-in-0 zoom-in-95 duration-500"
+                        style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
+                      >
+                        <EventCard event={event} onClick={() => handleSelectEvent(event)} />
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-          {!isLoading && filteredEvents.length === 0 && (
-            <div className="mt-8 text-center text-muted-foreground">
-              <p>No events found for this category. Check back soon!</p>
-            </div>
+              )}
+
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <h3 className="text-2xl font-bold tracking-tight sm:text-3xl">All Events</h3>
+                </div>
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {allOtherEvents.map((event, index) => (
+                    <div
+                      key={event.id}
+                      className="animate-in fade-in-0 zoom-in-95 duration-500"
+                      style={{ animationDelay: `${Math.min(index * 100, 500)}ms`, fillMode: 'backwards' }}
+                    >
+                      <EventCard event={event} onClick={() => handleSelectEvent(event)} />
+                    </div>
+                  ))}
+                </div>
+                {allOtherEvents.length === 0 && (!location || nearbyEvents.length === 0) && (
+                   <div className="mt-8 text-center text-muted-foreground">
+                    <p>No events found for this category. Check back soon!</p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </section>

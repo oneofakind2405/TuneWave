@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type Event = {
@@ -13,6 +14,8 @@ export type Event = {
   imageHint: string;
   viewCount?: number;
   createdAt: Timestamp;
+  latitude: number;
+  longitude: number;
 };
 
 // This file is now used for type definitions, mock data is no longer needed.

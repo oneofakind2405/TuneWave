@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -41,6 +42,8 @@ const formSchema = z.object({
   category: z.enum(['Rock', 'Pop', 'Electronic']),
   imageUrl: z.string().min(1, 'Image is required'),
   imageHint: z.string().min(1, 'Image hint is required'),
+  latitude: z.number(),
+  longitude: z.number(),
 });
 
 type EventFormValues = z.infer<typeof formSchema>;

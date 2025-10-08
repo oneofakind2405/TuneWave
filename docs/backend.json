@@ -81,6 +81,14 @@
         "viewCount": {
           "type": "number",
           "description": "Number of times the event has been viewed."
+        },
+        "latitude": {
+            "type": "number",
+            "description": "Latitude of the event location."
+        },
+        "longitude": {
+            "type": "number",
+            "description": "Longitude of the event location."
         }
       },
       "required": [
@@ -94,7 +102,9 @@
         "category",
         "imageUrl",
         "imageHint",
-        "viewCount"
+        "viewCount",
+        "latitude",
+        "longitude"
       ]
     },
     "Attendee": {

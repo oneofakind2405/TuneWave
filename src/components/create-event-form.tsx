@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -41,6 +42,8 @@ const formSchema = z.object({
   category: z.enum(['Rock', 'Pop', 'Electronic']),
   imageUrl: z.string().min(1, 'Image is required'),
   imageHint: z.string().min(1, 'Image hint is required'),
+  latitude: z.number(),
+  longitude: z.number(),
 });
 
 type EventFormValues = z.infer<typeof formSchema>;
@@ -68,9 +71,26 @@ export function CreateEventForm({
         time: '',
         category: 'Rock',
         imageUrl: 'https://picsum.photos/seed/event-placeholder/400/300',
-        imageHint: 'concert band'
+        imageHint: 'concert band',
+        // Simulate coordinates near a central point (e.g., New York City)
+        // In a real app, you'd get this from a geocoding API based on the location string
+        latitude: 40.7128 + (Math.random() - 0.5) * 2, // Randomize within approx. +/- 1 degree
+        longitude: -74.0060 + (Math.random() - 0.5) * 2,
     },
   });
+
+  // Function to reset coordinates when the form is opened
+  const resetCoordinates = () => {
+    form.setValue('latitude', 40.7128 + (Math.random() - 0.5) * 2);
+    form.setValue('longitude', -74.0060 + (Math.random() - 0.5) * 2);
+  };
+
+  useEffect(() => {
+    if (open) {
+      resetCoordinates();
+    }
+  }, [open]);
+
 
   const onSubmit = (data: EventFormValues) => {
     onCreate(data as any);
