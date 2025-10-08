@@ -72,15 +72,17 @@ export function EditEventForm({
     if (event) {
       form.reset(event);
       setImagePreview(event.imageUrl);
+    } else {
+      form.reset({});
+      setImagePreview(null);
     }
-  }, [event, form]);
+  }, [event, form, open]);
 
   const onSubmit = (data: EventFormValues) => {
     if (event) {
       onSave({ ...event, ...data });
     }
     onOpenChange(false);
-    setImagePreview(null);
   };
   
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -97,20 +99,14 @@ export function EditEventForm({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      onOpenChange(isOpen);
-      if (!isOpen) {
-        setImagePreview(null);
-      }
-    }}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-0 flex-shrink-0">
           <DialogTitle>Edit Event</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto px-6">
           <Form {...form}>
-            <form id="edit-event-form" onSubmit={form.handleSubmit(onSubmit)}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+            <form id="edit-event-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-4">
                   <FormField
                     control={form.control}
@@ -203,8 +199,6 @@ export function EditEventForm({
                       )}
                     />
                   </div>
-                </div>
-                <div className="space-y-4">
                   <FormField
                     control={form.control}
                     name="imageUrl"
@@ -242,11 +236,10 @@ export function EditEventForm({
                     )}
                   />
                 </div>
-              </div>
             </form>
           </Form>
         </div>
-        <DialogFooter className="bg-muted px-6 py-4 border-t flex-shrink-0">
+        <DialogFooter className="p-6 pt-4 border-t bg-background flex-shrink-0">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button type="submit" form="edit-event-form">Save Changes</Button>
         </DialogFooter>
