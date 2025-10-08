@@ -138,7 +138,10 @@ export default function ProfilePage() {
   // Fetch events the user is attending
   const attendingEventsQuery = useMemo(() => {
     if (!firestore || attendingEventIds.size === 0) return null;
-    return query(collection(firestore, 'events'), where('id', 'in', Array.from(attendingEventIds)));
+    // Firestore 'in' queries are limited to 30 elements.
+    // For this app, we'll assume a user won't attend more than 30 events at once.
+    // For larger scale, you'd need to batch the queries.
+    return query(collection(firestore, 'events'), where('id', 'in', Array.from(attendingEventIds).slice(0, 30)));
   }, [firestore, attendingEventIds]);
   const { data: attendingEvents, isLoading: isAttendingEventsLoading } = useCollection<Event>(attendingEventsQuery);
 
