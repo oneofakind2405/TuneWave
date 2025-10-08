@@ -1,9 +1,10 @@
+
 'use client';
 
 import { createContext, useContext, useState, ReactNode, Dispatch, SetStateAction, useEffect, useMemo } from 'react';
 import { Event } from '@/lib/events-data';
 import { useCollection, useFirebase } from '@/firebase';
-import { collection, query, orderBy, where, getDocs, doc } from 'firebase/firestore';
+import { collection, query, orderBy, getDocs, doc } from 'firebase/firestore';
 
 type Location = {
   latitude: number;
@@ -105,13 +106,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Create a batch of promises to check attendance for all events
         const attendanceChecks = events.map(async (event) => {
           try {
-            const attendeeDocRef = doc(firestore, 'events', event.id, 'attendees', authUser.uid);
-            // This is not a query, we need to get the doc
-            const attendeeDoc = await getDocs(query(collection(firestore, 'events', event.id, 'attendees'), where('__name__', '==', authUser.uid)));
+            // Correctly construct the document reference
+            const attendeesCollectionRef = collection(firestore, 'events', event.id, 'attendees');
+            const attendeeQuery = query(attendeesCollectionRef);
+            const attendeeSnapshot = await getDocs(attendeeQuery);
 
-            if (!attendeeDoc.empty) {
-              return event.id;
+            const userIsAttending = attendeeSnapshot.docs.some(doc => doc.id === authUser.uid);
+            
+            if (userIsAttending) {
+                return event.id;
             }
+
           } catch (e) {
             console.warn(`Could not check attendance for event ${event.id}`, e);
           }
