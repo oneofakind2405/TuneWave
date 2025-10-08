@@ -5,6 +5,11 @@ import { Event } from '@/lib/events-data';
 import { useCollection, useFirebase } from '@/firebase';
 import { collection, query, orderBy, where, getDocs, doc } from 'firebase/firestore';
 
+type Location = {
+  latitude: number;
+  longitude: number;
+};
+
 type AppContextType = {
   user: any | null | undefined;
   setUser: Dispatch<SetStateAction<any | null | undefined>>;
@@ -13,6 +18,8 @@ type AppContextType = {
   attendingEventIds: Set<string>;
   setAttendingEventIds: Dispatch<SetStateAction<Set<string>>>;
   isLoading: boolean;
+  location: Location | null;
+  locationError: string | null;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -21,6 +28,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const { firestore, user: authUser, isUserLoading } = useFirebase();
   const [user, setUser] = useState<any | null | undefined>(undefined);
   const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set());
+  const [location, setLocation] = useState<Location | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
+
 
   const eventsQuery = useMemo(() => firestore ? query(collection(firestore, 'events'), orderBy('createdAt', 'desc')) : null, [firestore]);
   const { data: events, isLoading: isEventsLoading } = useCollection<Event>(eventsQuery);
@@ -32,25 +42,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isUserLoading, authUser]);
 
   useEffect(() => {
+    // Request location only on the client side
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setLocationError(null);
+        },
+        (error) => {
+          switch (error.code) {
+            case error.PERMISSION_DENIED:
+              setLocationError("Location access denied. You can enable it in your browser settings.");
+              break;
+            case error.POSITION_UNAVAILABLE:
+              setLocationError("Location information is unavailable.");
+              break;
+            case error.TIMEOUT:
+              setLocationError("The request to get user location timed out.");
+              break;
+            default:
+              setLocationError("An unknown error occurred while getting location.");
+              break;
+          }
+        }
+      );
+    } else {
+      setLocationError("Geolocation is not supported by this browser.");
+    }
+  }, []);
+
+  useEffect(() => {
     const fetchAttendingEvents = async () => {
       if (firestore && authUser && events && events.length > 0) {
         const newAttendingEventIds = new Set<string>();
         // Create a batch of promises to check attendance for all events
         const attendanceChecks = events.map(async (event) => {
-          const attendeeDocRef = doc(firestore, 'events', event.id, 'attendees', authUser.uid);
-          // This is not a query, but we can simulate a read.
-          // A more direct way is needed if we stick to this model.
-          // Let's check for document existence.
           try {
-            // Using a query to check for a single doc is one way.
             const q = query(collection(firestore, 'events', event.id, 'attendees'), where('__name__', '==', authUser.uid));
             const snapshot = await getDocs(q);
             if (!snapshot.empty) {
               return event.id;
             }
           } catch (e) {
-            // Permission errors will be caught by the global handler if they are thrown from a hook.
-            // Direct SDK calls in useEffect won't be caught automatically.
             console.warn(`Could not check attendance for event ${event.id}`, e);
           }
           return null;
@@ -82,7 +118,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setEvents: () => {}, // This is now read-only from Firestore
       attendingEventIds, 
       setAttendingEventIds,
-      isLoading
+      isLoading,
+      location,
+      locationError,
     }}>
       {children}
     </AppContext.Provider>

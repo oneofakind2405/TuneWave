@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { type Event } from '@/lib/events-data';
 import { EventCard } from './event-card';
 import { Button } from './ui/button';
-import { Disc3, Mic, Music } from 'lucide-react';
+import { Disc3, Mic, Music, MapPin } from 'lucide-react';
 import { GuitarIcon } from './icons/guitar';
 import { EventDetailsDialog } from './event-details-dialog';
 import { EditEventForm } from './edit-event-form';
@@ -27,6 +27,34 @@ const categories = [
 ] as const;
 
 type Category = (typeof categories)[number]['name'];
+
+function LocationDisplay() {
+  const { location, locationError } = useAppContext();
+
+  if (locationError) {
+    return (
+      <Card className="mt-8 bg-destructive/10 border-destructive/50 text-destructive p-4 text-center">
+        <p className="font-bold">Location Error</p>
+        <p className="text-sm">{locationError}</p>
+      </Card>
+    );
+  }
+
+  if (location) {
+    return (
+       <Card className="mt-8 bg-secondary/50 p-4 text-center">
+        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+          <MapPin className="h-5 w-5 text-primary" />
+          <p className="text-sm">
+            Your Location: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+          </p>
+        </div>
+      </Card>
+    );
+  }
+
+  return null;
+}
 
 
 export function EventsSection() {
@@ -97,7 +125,7 @@ export function EventsSection() {
     setSelectedEvent(null);
   };
 
-  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt'>) => {
+  const handleCreate = (newEventData: Omit<Event, 'id' | 'creatorId' | 'createdAt' | 'viewCount'>) => {
     if (!user || !firestore) {
       toast({ variant: 'destructive', title: "Not Signed In", description: "You must be signed in to create an event." });
       return;
@@ -179,6 +207,8 @@ export function EventsSection() {
             <h2 className="text-3xl font-bold tracking-tight sm:text-4xl font-headline">Upcoming Events</h2>
             <p className="mt-4 text-lg text-muted-foreground">Filter by category to find your perfect night out.</p>
           </div>
+
+          <LocationDisplay />
 
           <div className="my-8 flex flex-wrap items-center justify-center gap-2">
             {categories.map(({ name, icon: Icon }) => (
