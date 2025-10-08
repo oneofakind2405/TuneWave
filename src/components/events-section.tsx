@@ -44,7 +44,7 @@ function getDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
 }
 
 function LocationDisplay() {
-  const { location, locationError } = useAppContext();
+  const { location, locationError, cityName } = useAppContext();
 
   if (locationError) {
     return (
@@ -61,7 +61,7 @@ function LocationDisplay() {
         <div className="flex items-center justify-center gap-2 text-muted-foreground">
           <MapPin className="h-5 w-5 text-primary" />
           <p className="text-sm">
-            Your Location: {location.latitude.toFixed(4)}, {location.longitude.toFixed(4)}
+             {cityName ? `Your Location: ${cityName}` : 'Loading your location...'}
           </p>
         </div>
       </Card>

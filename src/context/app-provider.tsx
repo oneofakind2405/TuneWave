@@ -20,6 +20,7 @@ type AppContextType = {
   isLoading: boolean;
   location: Location | null;
   locationError: string | null;
+  cityName: string | null;
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,6 +31,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [attendingEventIds, setAttendingEventIds] = useState<Set<string>>(new Set());
   const [location, setLocation] = useState<Location | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [cityName, setCityName] = useState<string | null>(null);
 
 
   const eventsQuery = useMemo(() => firestore ? query(collection(firestore, 'events'), orderBy('createdAt', 'desc')) : null, [firestore]);
@@ -42,14 +44,36 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [isUserLoading, authUser]);
 
   useEffect(() => {
-    // Request location only on the client side
+    const fetchCityName = async (lat: number, lon: number) => {
+      try {
+        // Using a free, public reverse geocoding API. No API key required.
+        const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch city name');
+        }
+        const data = await response.json();
+        const city = data.address.city || data.address.town || data.address.village;
+        const state = data.address.state;
+        if (city && state) {
+          setCityName(`${city}, ${state}`);
+        } else {
+          setCityName('Location name not found');
+        }
+      } catch (error) {
+        console.warn('Could not fetch city name:', error);
+        setCityName('Could not determine city');
+      }
+    };
+
     if (typeof window !== 'undefined' && 'geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setLocation({
+          const newLocation = {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
-          });
+          };
+          setLocation(newLocation);
+          fetchCityName(newLocation.latitude, newLocation.longitude);
           setLocationError(null);
         },
         (error) => {
@@ -121,6 +145,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isLoading,
       location,
       locationError,
+      cityName,
     }}>
       {children}
     </AppContext.Provider>
